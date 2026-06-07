@@ -129,13 +129,11 @@ let hasImage = false; // true = 图片粒子模式
 
 // ══════════════════════════════════════════════════════════════════
 function setup() {
-    let c = createCanvas(1200, 1200, WEBGL);
+    let c = createCanvas(1200, 1200);
     c.parent('cv');
     colorMode(HSB, 360, 100, 100, 100);
     noiseDetail(4, 0.55);
     cx = width/2; cy = height/2;
-    ortho();
-    translate(-width/2, -height/2);
     document.querySelector('.loading').style.display = 'none';
     initFlowField();
 }
@@ -192,10 +190,11 @@ function processImageCore(imgEl) {
     ctx.drawImage(imgEl, 0, 0, sw, sh);
     let data = ctx.getImageData(0, 0, sw, sh).data;
 
-    let step = max(2, 12 - params.density); // 密度越高 → 步长越小 → 粒子越多
+    let step = max(2, floor(16 - params.density * 1.4)); // 密度越高 → 步长越小 → 粒子越多
+    const MAX_P = 15000; // 粒子硬上限，保证动画流畅
     particles = [];
 
-    for (let y=0; y<sh; y+=step) {
+    sample: for (let y=0; y<sh; y+=step) {
         for (let x=0; x<sw; x+=step) {
             let idx = (y*sw + x)*4;
             let rr = data[idx], gg = data[idx+1], bb = data[idx+2], aa = data[idx+3];
@@ -206,6 +205,7 @@ function processImageCore(imgEl) {
                 if (px < 0 || px >= width || py < 0 || py >= height) continue;
                 let count = bright > 200 ? 3 : bright > 140 ? 2 : 1;
                 for (let n=0; n<count; n++) {
+                    if (particles.length >= MAX_P) break sample;
                     particles.push({
                         x: px + random(-step/2, step/2),
                         y: py + random(-step/2, step/2),
@@ -235,28 +235,19 @@ function processImageCore(imgEl) {
 
 // ── 静态渲染：一次画出所有粒子，不走 draw 循环 ──
 function renderImageParticlesStatic() {
-    colorMode(RGB, 255, 255, 255, 255);
-    noStroke();
+    let ctx = drawingContext;
     let ps = params.pSize, half = ps/2;
     let thresh = params.thresh;
-    beginShape(QUADS);
     for (let p of particles) {
         if (!p.alive) continue;
-        let a = map(p.bright, thresh, 255, 0.15, 0.85)*255;
-        fill(p.r&0xF0, p.g&0xF0, p.b&0xF0, Math.round(a/16)*16);
-        vertex(p.x-half, p.y-half);
-        vertex(p.x+half, p.y-half);
-        vertex(p.x+half, p.y+half);
-        vertex(p.x-half, p.y+half);
+        let a = map(p.bright, thresh, 255, 0.15, 0.85);
+        ctx.fillStyle = `rgba(${p.r},${p.g},${p.b},${a.toFixed(2)})`;
+        ctx.fillRect(p.x - half, p.y - half, ps, ps);
     }
-    endShape();
 }
 
 // ══════════════════════════════════════════════════════════════════
 function draw() {
-    resetMatrix();
-    ortho();
-    translate(-width/2, -height/2);
     if (hasImage) {
         drawImageParticles();
     } else {
@@ -266,17 +257,14 @@ function draw() {
 
 // ── 图片粒子 draw（晃动模式） ──
 function drawImageParticles() {
-    colorMode(RGB, 255, 255, 255, 255);
-    noStroke();
+    let ctx = drawingContext;
     let ps = params.pSize, half = ps/2;
     let thresh = params.thresh, drift = params.drift;
 
     // 背景淡出
-    fill(6, 6, 13, 18);
-    rect(0, 0, width, height);
+    ctx.fillStyle = 'rgba(6,6,13,0.07)';
+    ctx.fillRect(0, 0, width, height);
 
-    // 批处理：所有粒子打包成一个 beginShape(QUADS)，GPU 一次渲染
-    beginShape(QUADS);
     for (let p of particles) {
         if (!p.alive) continue;
 
@@ -286,23 +274,17 @@ function drawImageParticles() {
             p.y = p.oy + cos(t * p.fy + p.ph) * drift * 3.5;
         }
 
-        let a = map(p.bright, thresh, 255, 0.12, 0.75)*255;
-        // 颜色量化到近 16，合并相近粒子减少 GPU 调用
-        fill(p.r&0xF0, p.g&0xF0, p.b&0xF0, Math.round(a/16)*16);
-        vertex(p.x-half, p.y-half);
-        vertex(p.x+half, p.y-half);
-        vertex(p.x+half, p.y+half);
-        vertex(p.x-half, p.y+half);
+        let a = map(p.bright, thresh, 255, 0.12, 0.75);
+        ctx.fillStyle = `rgba(${p.r},${p.g},${p.b},${a.toFixed(2)})`;
+        ctx.fillRect(p.x - half, p.y - half, ps, ps);
     }
-    endShape();
 
     frame++;
-    if (frame>=MAX_FR) { done=true; noLoop(); }
+    if (frame >= MAX_FR) { done = true; noLoop(); }
 }
 
 // ── 默认流场 draw ──
 function drawFlowField() {
-    colorMode(HSB, 360, 100, 100, 100);
     noStroke(); fill(6,6,13, 8); rect(0,0,width,height);
 
     let alive = 0;
