@@ -129,6 +129,7 @@
 let params = { seed:12345, sym:1, density:5, pSize:2.5, drift:1.5, thresh:50 };
 const defs = JSON.parse(JSON.stringify(params));
 let uploadedImg = null;
+let storedDataUrl = null;
 let particles = [], symAngles = [];
 let frame = 0;
 const MAX_FR = 300;
@@ -172,35 +173,57 @@ function initFlowField() {
 }
 
 // ── 图片粒子 ──
-function processImage(img) {
+function processImage() {
     randomSeed(params.seed); noiseSeed(params.seed);
     symAngles = [];
     for (let i=0; i<params.sym; i++) symAngles.push(TWO_PI/params.sym*i);
 
-    // 缩放铺满画布（cover 模式，裁掉超出部分）
-    let scale = max(width/img.width, height/img.height);
-    let iw = floor(img.width*scale), ih = floor(img.height*scale);
-    let ox = (width-iw)/2, oy = (height-ih)/2;
-    let pg = createGraphics(iw, ih);
-    pg.image(img, 0, 0, iw, ih);
-    pg.loadPixels();
+    if (!storedDataUrl) { initFlowField(); return; }
+
+    // 用原生 Image + Canvas 读取像素（同步可靠）
+    let imgEl = new Image();
+    imgEl.src = storedDataUrl;
+    // 等图片加载完（data URL 是同步/微异步的，这里需要确保尺寸可用）
+    if (!imgEl.complete || imgEl.naturalWidth === 0) {
+        imgEl.onload = () => processImageCore(imgEl);
+        return;
+    }
+    processImageCore(imgEl);
+}
+
+function processImageCore(imgEl) {
+    randomSeed(params.seed); noiseSeed(params.seed);
+    symAngles = [];
+    for (let i=0; i<params.sym; i++) symAngles.push(TWO_PI/params.sym*i);
+
+    let iw = imgEl.naturalWidth || imgEl.width;
+    let ih = imgEl.naturalHeight || imgEl.height;
+    let scale = max(width/iw, height/ih);
+    let sw = floor(iw*scale), sh = floor(ih*scale);
+    let ox = (width-sw)/2, oy = (height-sh)/2;
+
+    // 原生 Canvas 绘制缩放后的图片
+    let c = document.createElement('canvas');
+    c.width = sw; c.height = sh;
+    let ctx = c.getContext('2d');
+    ctx.drawImage(imgEl, 0, 0, sw, sh);
+    let data = ctx.getImageData(0, 0, sw, sh).data;
 
     let step = max(2, floor(params.density));
     particles = [];
 
-    for (let y=0; y<ih; y+=step) {
-        for (let x=0; x<iw; x+=step) {
-            let idx = (y*iw + x)*4;
-            let r = pg.pixels[idx], g = pg.pixels[idx+1], b = pg.pixels[idx+2], a = pg.pixels[idx+3];
+    for (let y=0; y<sh; y+=step) {
+        for (let x=0; x<sw; x+=step) {
+            let idx = (y*sw + x)*4;
+            let r = data[idx], g = data[idx+1], b = data[idx+2], a = data[idx+3];
             let bright = (r+g+b)/3;
             if (bright >= params.thresh && a > 20) {
                 let px = ox + x;
                 let py = oy + y;
-                // 只保留画布范围内的像素
                 if (px < 0 || px >= width || py < 0 || py >= height) continue;
                 let hsb = rgbToHsb(r,g,b);
                 let count = bright > 200 ? 3 : bright > 140 ? 2 : 1;
-                for (let c=0; c<count; c++) {
+                for (let n=0; n<count; n++) {
                     particles.push({
                         x: px + random(-step/2, step/2),
                         y: py + random(-step/2, step/2),
@@ -214,7 +237,6 @@ function processImage(img) {
             }
         }
     }
-    pg.remove();
     background(240,5,8);
     frame=0; done=false;
     loop();
@@ -310,27 +332,25 @@ function draw() {
 function up(k,v) {
     params[k] = (k==='density'||k==='sym') ? parseInt(v) : parseFloat(v);
     document.getElementById(k+'-v').textContent = v;
-    if (k==='sym' && !uploadedImg) initFlowField();
-    else if (uploadedImg) processImage(uploadedImg);
-    else initFlowField();
+    if (uploadedImg) processImage(); else initFlowField();
 }
 function handleFile(file) {
     if (!file) return;
     let reader = new FileReader();
     reader.onload = function(e) {
-        loadImage(e.target.result, function(img) {
-            uploadedImg = img;
-            document.getElementById('preview').src = e.target.result;
-            document.getElementById('preview').style.display = 'block';
-            document.getElementById('hint').style.display = 'none';
-            document.getElementById('dropZone').classList.add('has-img');
-            processImage(img);
-        });
+        storedDataUrl = e.target.result;
+        uploadedImg = true;
+        document.getElementById('preview').src = e.target.result;
+        document.getElementById('preview').style.display = 'block';
+        document.getElementById('hint').style.display = 'none';
+        document.getElementById('dropZone').classList.add('has-img');
+        processImage();
     };
     reader.readAsDataURL(file);
 }
 function clearImage() {
     uploadedImg = null;
+    storedDataUrl = null;
     document.getElementById('preview').style.display = 'none';
     document.getElementById('hint').style.display = '';
     document.getElementById('dropZone').classList.remove('has-img');
@@ -338,7 +358,7 @@ function clearImage() {
     initFlowField();
 }
 function regen() {
-    if (uploadedImg) processImage(uploadedImg);
+    if (uploadedImg) processImage();
     else initFlowField();
 }
 function reset() {
@@ -348,7 +368,7 @@ function reset() {
         document.getElementById(k+'-v').textContent=params[k];
     });
     updateSeedDisp();
-    if (uploadedImg) processImage(uploadedImg); else initFlowField();
+    if (uploadedImg) processImage(); else initFlowField();
 }
 function updateSeedDisp() { document.getElementById('seedIn').value = params.seed; }
 function updateSeed() { let v=parseInt(document.getElementById('seedIn').value); if(v&&v>0){params.seed=v;regen();}else updateSeedDisp(); }
