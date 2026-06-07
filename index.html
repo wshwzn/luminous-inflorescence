@@ -248,15 +248,17 @@ void main(){
         x+=cos(ang)*s*70.0;
         y+=sin(ang)*s*70.0;
     }
-    // 按住磁吸：粒子被吸向光标
+    // 按住磁吸：粒子螺旋吸入
     if(u_vortex.z>0.0){
-        float dx=u_vortex.x-x,dy=u_vortex.y-y;
+        float dx=x-u_vortex.x,dy=y-u_vortex.y;
         float dist=sqrt(dx*dx+dy*dy);
-        float r=200.0;
+        float r=350.0;
         if(dist<r && dist>0.0){
             float f=u_vortex.z*(1.0-dist/r);
-            x+=dx/dist*f*80.0;
-            y+=dy/dist*f*80.0;
+            float ang=atan(dy,dx)+f*2.5;
+            float nd=dist*(1.0-f*0.4);
+            x=u_vortex.x+cos(ang)*nd;
+            y=u_vortex.y+sin(ang)*nd;
         }
     }
     // 鼠标推开粒子
