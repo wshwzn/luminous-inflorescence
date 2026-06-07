@@ -273,8 +273,8 @@ function drawImageParticles() {
             let t = frame * 0.03;
             let nx = noise(p.ox * 0.008, p.oy * 0.008, t) * 2 - 1;
             let ny = noise(p.ox * 0.008, p.oy * 0.008 + 100, t) * 2 - 1;
-            p.x = p.ox + nx * drift * 1.8;
-            p.y = p.oy + ny * drift * 1.8;
+            p.x = p.ox + nx * drift * 3.5;
+            p.y = p.oy + ny * drift * 3.5;
         }
 
         let a = map(p.bright, thresh, 255, 0.12, 0.75);
