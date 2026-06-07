@@ -139,7 +139,7 @@ let cx, cy;
 function setup() {
     let c = createCanvas(1200, 1200);
     c.parent('cv');
-    colorMode(RGB, 255);
+    colorMode(HSB, 360, 100, 100, 100);
     noiseDetail(4, 0.55);
     cx = width/2; cy = height/2;
     document.querySelector('.loading').style.display = 'none';
@@ -196,28 +196,39 @@ function processImage(img) {
             if (bright >= params.thresh && a > 20) {
                 let px = ox + x;
                 let py = oy + y;
-                // 多个粒子叠加在亮点
+                let hsb = rgbToHsb(r,g,b);
                 let count = bright > 200 ? 3 : bright > 140 ? 2 : 1;
                 for (let c=0; c<count; c++) {
                     particles.push({
                         x: px + random(-step/2, step/2),
                         y: py + random(-step/2, step/2),
                         ox: px, oy: py,
-                        r: r, g: g, b: b,
+                        h: hsb.h, s: hsb.s, b: hsb.b,
                         bright: bright,
                         alive: true,
                         src: 'img',
-                        angle: random(TWO_PI),
-                        phase: random(TWO_PI),
                     });
                 }
             }
         }
     }
     pg.remove();
-    background(6,6,13);
+    background(240,5,8);
     frame=0; done=false;
     loop();
+}
+
+// RGB → HSB 转换
+function rgbToHsb(r,g,b) {
+    r/=255; g/=255; b/=255;
+    let mx=Math.max(r,g,b), mn=Math.min(r,g,b), d=mx-mn;
+    let h=0, s=mx===0?0:d/mx, v=mx;
+    if (d!==0) {
+        if (mx===r) h=((g-b)/d+(g<b?6:0))*60;
+        else if (mx===g) h=((b-r)/d+2)*60;
+        else h=((r-g)/d+4)*60;
+    }
+    return {h:h%360, s:s*100, b:v*100};
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -261,13 +272,13 @@ function draw() {
                 p.y += ny;
             }
             // 绘制（含对称）
-            let alpha = map(p.bright, params.thresh, 255, 40, 220);
+            let alpha = map(p.bright, params.thresh, 255, 15, 80);
             for (let sa of symAngles) {
                 let c=cos(sa), s=sin(sa);
                 let rx = (p.x-cx)*c - (p.y-cy)*s + cx;
                 let ry = (p.x-cx)*s + (p.y-cy)*c + cy;
                 strokeWeight(params.pSize);
-                stroke(p.r, p.g, p.b, alpha);
+                stroke(p.h, p.s, p.b, alpha);
                 point(rx, ry);
             }
         }
@@ -283,7 +294,7 @@ function draw() {
                     let c=cos(sa),s=sin(sa);
                     let rx=(p.x-cx)*c-(p.y-cy)*s+cx, ry=(p.x-cx)*s+(p.y-cy)*c+cy;
                     strokeWeight(params.pSize*0.6);
-                    stroke(p.r,p.g,p.b, 120);
+                    stroke(p.h, p.s, p.b, 50);
                     point(rx,ry);
                 }
             }
