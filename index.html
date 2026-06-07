@@ -455,14 +455,33 @@ function resetAll() {
 function downloadPNG() {
     let cv = document.getElementById('gl-canvas');
     if (hasImage && cv.style.display!=='none') {
-        // 强制渲染一帧，确保缓冲区有内容
+        // 强制渲染一帧
         gl.clearColor(bgColor[0], bgColor[1], bgColor[2], 1.0);
         gl.clear(gl.COLOR_BUFFER_BIT);
         drawGL(glTime);
-        gl.finish();
+
+        // gl.readPixels 读显存 → 2D canvas → 下载（稳定可靠）
+        let w = 1200, h = 1200;
+        let pixels = new Uint8Array(w * h * 4);
+        gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+
+        // 写入 2D canvas（翻转 Y，WebGL 原点在左下）
+        let c2 = document.createElement('canvas');
+        c2.width = w; c2.height = h;
+        let ctx = c2.getContext('2d');
+        let img = ctx.createImageData(w, h);
+        for (let y = 0; y < h; y++) {
+            let srcRow = (h - 1 - y) * w * 4;
+            let dstRow = y * w * 4;
+            for (let x = 0; x < w * 4; x++) {
+                img.data[dstRow + x] = pixels[srcRow + x];
+            }
+        }
+        ctx.putImageData(img, 0, 0);
+
         let a = document.createElement('a');
         a.download = 'particle-art-'+params.seed+'.png';
-        a.href = cv.toDataURL('image/png');
+        a.href = c2.toDataURL('image/png');
         a.click();
     } else {
         if (_p5) _p5.saveCanvas('particle-art-'+params.seed, 'png');
