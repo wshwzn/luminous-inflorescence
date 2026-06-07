@@ -129,13 +129,98 @@ let hasImage = false; // true = 图片粒子模式
 
 // ══════════════════════════════════════════════════════════════════
 function setup() {
-    let c = createCanvas(1200, 1200);
+    let c = createCanvas(1200, 1200, WEBGL);
     c.parent('cv');
     colorMode(HSB, 360, 100, 100, 100);
     noiseDetail(4, 0.55);
     cx = width/2; cy = height/2;
+    _gl = _renderer.GL;
+    initShader();
     document.querySelector('.loading').style.display = 'none';
     initFlowField();
+}
+
+// ── 自定义 GPU 着色器 ──
+let _gl = null;
+let _shader = null;
+let _vbo = null;
+let _gpuCount = 0;
+let _gpuData = null; // Float32Array cache
+
+const VERT = `
+attribute vec2 a_pos;
+attribute vec3 a_col;
+attribute float a_phase;
+attribute float a_bright;
+uniform float u_time;
+uniform float u_drift;
+uniform float u_ps;
+uniform float u_thresh;
+uniform vec2 u_res;
+varying vec3 v_col;
+varying float v_alpha;
+void main() {
+    float x = a_pos.x, y = a_pos.y;
+    if (u_drift > 0.0) {
+        float fx = 0.7 + fract(a_phase * 0.73) * 0.6;
+        float fy = 0.7 + fract(a_phase * 1.37) * 0.6;
+        x += sin(u_time * fx + a_phase) * u_drift * 3.5;
+        y += cos(u_time * fy + a_phase + 1.7) * u_drift * 3.5;
+    }
+    gl_Position = vec4(x / u_res.x * 2.0 - 1.0, 1.0 - y / u_res.y * 2.0, 0.0, 1.0);
+    gl_PointSize = u_ps;
+    v_col = a_col;
+    v_alpha = a_bright;
+}`;
+
+const FRAG = `
+precision mediump float;
+varying vec3 v_col;
+varying float v_alpha;
+void main() {
+    float d = length(gl_PointCoord - 0.5) * 2.0;
+    float a = v_alpha * (1.0 - smoothstep(0.6, 1.0, d));
+    gl_FragColor = vec4(v_col, a);
+}`;
+
+function initShader() {
+    let gl = _gl;
+    let vs = gl.createShader(gl.VERTEX_SHADER);
+    gl.shaderSource(vs, VERT); gl.compileShader(vs);
+    let fs = gl.createShader(gl.FRAGMENT_SHADER);
+    gl.shaderSource(fs, FRAG); gl.compileShader(fs);
+    _shader = gl.createProgram();
+    gl.attachShader(_shader, vs); gl.attachShader(_shader, fs);
+    gl.linkProgram(_shader);
+    gl.deleteShader(vs); gl.deleteShader(fs);
+}
+
+function uploadToGPU(arr) {
+    let gl = _gl;
+    _gpuData = new Float32Array(arr.length * 7);
+    for (let i = 0; i < arr.length; i++) {
+        let p = arr[i], j = i * 7;
+        _gpuData[j] = p.ox; _gpuData[j+1] = p.oy;
+        _gpuData[j+2] = p.r / 255; _gpuData[j+3] = p.g / 255; _gpuData[j+4] = p.b / 255;
+        _gpuData[j+5] = p.ph || random(TWO_PI);
+        _gpuData[j+6] = map(p.bright, params.thresh, 255, 0.12, 0.75);
+    }
+    if (!_vbo) _vbo = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, _vbo);
+    gl.bufferData(gl.ARRAY_BUFFER, _gpuData, gl.STATIC_DRAW);
+    _gpuCount = arr.length;
+}
+
+function bindAttribs() {
+    let gl = _gl, s = 7 * 4;
+    let a = gl.getAttribLocation(_shader, 'a_pos');
+    gl.enableVertexAttribArray(a); gl.vertexAttribPointer(a, 2, gl.FLOAT, false, s, 0);
+    a = gl.getAttribLocation(_shader, 'a_col');
+    gl.enableVertexAttribArray(a); gl.vertexAttribPointer(a, 3, gl.FLOAT, false, s, 8);
+    a = gl.getAttribLocation(_shader, 'a_phase');
+    gl.enableVertexAttribArray(a); gl.vertexAttribPointer(a, 1, gl.FLOAT, false, s, 20);
+    a = gl.getAttribLocation(_shader, 'a_bright');
+    gl.enableVertexAttribArray(a); gl.vertexAttribPointer(a, 1, gl.FLOAT, false, s, 24);
 }
 
 // ── 默认流场 ──
@@ -158,7 +243,7 @@ function initFlowField() {
         let a = random(TWO_PI), r = random(0,60);
         particles.push({ x:cx+cos(a)*r, y:cy+sin(a)*r, px:cx+cos(a)*r, py:cy+sin(a)*r, md:random(200,540), sp:random(0.4,2.2), alive:true, src:'flow' });
     }
-    hasImage = false;
+    hasImage = false; _gpuCount = 0;
     background(6,6,13); frame=0; done=false; loop();
 }
 
@@ -176,22 +261,20 @@ function processImage() {
 
 function processImageCore(imgEl) {
     randomSeed(params.seed); noiseSeed(params.seed);
-
     let iw = imgEl.naturalWidth || imgEl.width;
     let ih = imgEl.naturalHeight || imgEl.height;
     let scale = max(width/iw, height/ih);
     let sw = floor(iw*scale), sh = floor(ih*scale);
     let ox = (width-sw)/2, oy = (height-sh)/2;
 
-    // 原生 Canvas 读像素
     let c = document.createElement('canvas');
     c.width = sw; c.height = sh;
     let ctx = c.getContext('2d');
     ctx.drawImage(imgEl, 0, 0, sw, sh);
     let data = ctx.getImageData(0, 0, sw, sh).data;
 
-    let step = max(2, floor(16 - params.density * 1.4)); // 密度越高 → 步长越小 → 粒子越多
-    const MAX_P = 150000; // 粒子硬上限
+    let step = max(2, floor(16 - params.density * 1.4));
+    const MAX_P = 150000;
     particles = [];
 
     sample: for (let y=0; y<sh; y+=step) {
@@ -200,84 +283,78 @@ function processImageCore(imgEl) {
             let rr = data[idx], gg = data[idx+1], bb = data[idx+2], aa = data[idx+3];
             let bright = (rr+gg+bb)/3;
             if (bright >= params.thresh && aa > 20) {
-                let px = ox + x;
-                let py = oy + y;
+                let px = ox + x, py = oy + y;
                 if (px < 0 || px >= width || py < 0 || py >= height) continue;
                 let count = bright > 200 ? 3 : bright > 140 ? 2 : 1;
                 for (let n=0; n<count; n++) {
                     if (particles.length >= MAX_P) break sample;
                     particles.push({
-                        x: px + random(-step/2, step/2),
-                        y: py + random(-step/2, step/2),
+                        x: px+random(-step/2,step/2), y: py+random(-step/2,step/2),
                         ox: px, oy: py,
-                        r: rr, g: gg, b: bb,
-                        bright: bright,
-                        alive: true, src: 'img',
-                        ph: random(TWO_PI), fx: random(0.7,1.3), fy: random(0.7,1.3),
+                        r: rr, g: gg, b: bb, bright: bright,
+                        ph: random(TWO_PI),
                     });
                 }
             }
         }
     }
+
+    // 上传到 GPU
+    uploadToGPU(particles);
     hasImage = true;
     background(6,6,13);
     frame=0; done=false;
 
-    // 静态模式直接一帧搞定
     if (params.drift === 0) {
-        renderImageParticlesStatic();
-        noLoop();
-        done = true;
+        _renderer.push();
+        let gl = _gl;
+        gl.useProgram(_shader);
+        gl.uniform1f(gl.getUniformLocation(_shader,'u_time'), 0);
+        gl.uniform1f(gl.getUniformLocation(_shader,'u_drift'), 0);
+        gl.uniform1f(gl.getUniformLocation(_shader,'u_ps'), params.pSize);
+        gl.uniform1f(gl.getUniformLocation(_shader,'u_thresh'), params.thresh/255);
+        gl.uniform2f(gl.getUniformLocation(_shader,'u_res'), width, height);
+        bindAttribs();
+        gl.drawArrays(gl.POINTS, 0, _gpuCount);
+        _renderer.pop();
+        noLoop(); done = true;
     } else {
         loop();
-    }
-}
-
-// ── 静态渲染：一次画出所有粒子，不走 draw 循环 ──
-function renderImageParticlesStatic() {
-    let ctx = drawingContext;
-    let ps = params.pSize, half = ps/2;
-    let thresh = params.thresh;
-    for (let p of particles) {
-        if (!p.alive) continue;
-        let a = map(p.bright, thresh, 255, 0.15, 0.85);
-        ctx.fillStyle = `rgba(${p.r},${p.g},${p.b},${a.toFixed(2)})`;
-        ctx.fillRect(p.x - half, p.y - half, ps, ps);
     }
 }
 
 // ══════════════════════════════════════════════════════════════════
 function draw() {
     if (hasImage) {
-        drawImageParticles();
+        drawImageParticlesGPU();
     } else {
+        resetMatrix(); ortho(); translate(-width/2, -height/2);
         drawFlowField();
     }
 }
 
-// ── 图片粒子 draw（晃动模式） ──
-function drawImageParticles() {
-    let ctx = drawingContext;
-    let ps = params.pSize, half = ps/2;
-    let thresh = params.thresh, drift = params.drift;
+// ── GPU 粒子渲染（晃动模式） ──
+function drawImageParticlesGPU() {
+    if (_gpuCount === 0) return;
 
-    // 背景淡出
-    ctx.fillStyle = 'rgba(6,6,13,0.07)';
-    ctx.fillRect(0, 0, width, height);
+    _renderer.push();
+    let gl = _gl;
+    gl.useProgram(_shader);
 
-    for (let p of particles) {
-        if (!p.alive) continue;
+    // 背景淡出用 p5 rect（仍然在 GPU 上）
+    resetMatrix(); ortho(); translate(-width/2, -height/2);
+    colorMode(RGB, 255); noStroke(); fill(6,6,13,12); rect(0,0,width,height);
 
-        if (drift > 0) {
-            let t = frame * 0.04;
-            p.x = p.ox + sin(t * p.fx + p.ph) * drift * 3.5;
-            p.y = p.oy + cos(t * p.fy + p.ph) * drift * 3.5;
-        }
-
-        let a = map(p.bright, thresh, 255, 0.12, 0.75);
-        ctx.fillStyle = `rgba(${p.r},${p.g},${p.b},${a.toFixed(2)})`;
-        ctx.fillRect(p.x - half, p.y - half, ps, ps);
-    }
+    // 自定义着色器渲染粒子
+    gl.useProgram(_shader);
+    gl.uniform1f(gl.getUniformLocation(_shader,'u_time'), frame * 0.04);
+    gl.uniform1f(gl.getUniformLocation(_shader,'u_drift'), params.drift);
+    gl.uniform1f(gl.getUniformLocation(_shader,'u_ps'), params.pSize);
+    gl.uniform1f(gl.getUniformLocation(_shader,'u_thresh'), params.thresh/255);
+    gl.uniform2f(gl.getUniformLocation(_shader,'u_res'), width, height);
+    bindAttribs();
+    gl.drawArrays(gl.POINTS, 0, _gpuCount);
+    _renderer.pop();
 
     frame++;
     if (frame >= MAX_FR) { done = true; noLoop(); }
@@ -286,11 +363,9 @@ function drawImageParticles() {
 // ── 默认流场 draw ──
 function drawFlowField() {
     noStroke(); fill(6,6,13, 8); rect(0,0,width,height);
-
     let alive = 0;
     for (let p of particles) {
-        if (!p.alive) continue;
-        alive++;
+        if (!p.alive) continue; alive++;
         let col = constrain(floor(p.x/RES),0,cols-1);
         let row = constrain(floor(p.y/RES),0,rows-1);
         let fl = flowField[row][col];
@@ -300,8 +375,7 @@ function drawFlowField() {
         if (d>p.md||p.x<-20||p.x>width+20||p.y<-20||p.y>height+20) { p.alive=false; continue; }
         let dr = constrain(d/p.md,0,1);
         let ang = atan2(p.y-cy,p.x-cx);
-        let h = map(ang,-PI,PI,0,360);
-        stroke(h,85,95, 10*(1-dr*0.6));
+        stroke(map(ang,-PI,PI,0,360),85,95, 10*(1-dr*0.6));
         strokeWeight(map(dr,0,1,1.5,0.6));
         line(p.px,p.py,p.x,p.y);
     }
