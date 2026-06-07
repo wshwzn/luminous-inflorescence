@@ -20,7 +20,7 @@
         .ctrl { margin-bottom: 24px; }
         .ctrl h3 { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
         .ctrl h3::before { content: '•'; color: var(--orange); font-weight: bold; }
-        .row { display: flex; gap: 6px; align-items: center; }
+        .row { display: flex; gap: 6px; align-items: center; margin-bottom: 10px; }
         .row label { font-size: 13px; color: var(--muted); white-space: nowrap; }
         .row input[type="range"] { flex: 1; height: 4px; background: rgba(255,255,255,0.12); border-radius: 2px; outline: none; -webkit-appearance: none; }
         .row input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; background: var(--orange); border-radius: 50%; cursor: pointer; }
@@ -53,7 +53,6 @@
     <h2>粒子画</h2>
     <div class="subtitle">上传图片 → 生成粒子艺术品</div>
 
-    <!-- 上传 -->
     <div class="ctrl">
         <h3>上传图片</h3>
         <div class="upload-zone" id="dropZone" onclick="document.getElementById('fileIn').click()">
@@ -64,7 +63,6 @@
         <button class="btn sm b2" onclick="clearImage()" style="margin-top:4px;">清除图片，用默认流场</button>
     </div>
 
-    <!-- 种子 -->
     <div class="ctrl">
         <h3>种子</h3>
         <div class="seed-row">
@@ -77,38 +75,30 @@
         </div>
     </div>
 
-    <!-- 参数 -->
     <div class="ctrl">
         <h3>参数</h3>
-
-        <div class="row" style="margin-bottom:10px;">
-            <label>对称</label>
-            <input type="range" id="sym" min="1" max="16" step="1" value="1" oninput="up('sym',this.value)">
-            <span class="val" id="sym-v">1</span>
-        </div>
-        <div class="row" style="margin-bottom:10px;">
+        <div class="row">
             <label>粒子密度</label>
-            <input type="range" id="density" min="2" max="16" step="1" value="5" oninput="up('density',this.value)">
-            <span class="val" id="density-v">5</span>
+            <input type="range" id="density" min="2" max="16" step="1" value="4" oninput="up('density',this.value)">
+            <span class="val" id="density-v">4</span>
         </div>
-        <div class="row" style="margin-bottom:10px;">
+        <div class="row">
             <label>粒子大小</label>
             <input type="range" id="pSize" min="1" max="8" step="0.5" value="2.5" oninput="up('pSize',this.value)">
             <span class="val" id="pSize-v">2.5</span>
         </div>
-        <div class="row" style="margin-bottom:10px;">
-            <label>流动</label>
+        <div class="row">
+            <label>流动强度</label>
             <input type="range" id="drift" min="0" max="5" step="0.5" value="1.5" oninput="up('drift',this.value)">
             <span class="val" id="drift-v">1.5</span>
         </div>
-        <div class="row" style="margin-bottom:10px;">
+        <div class="row">
             <label>亮度阈值</label>
-            <input type="range" id="thresh" min="10" max="200" step="5" value="50" oninput="up('thresh',this.value)">
-            <span class="val" id="thresh-v">50</span>
+            <input type="range" id="thresh" min="10" max="200" step="5" value="40" oninput="up('thresh',this.value)">
+            <span class="val" id="thresh-v">40</span>
         </div>
     </div>
 
-    <!-- 操作 -->
     <div class="ctrl">
         <h3>操作</h3>
         <div class="btn-row">
@@ -126,15 +116,16 @@
 
 <script>
 // ══════════════════════════════════════════════════════════════════
-let params = { seed:12345, sym:1, density:5, pSize:2.5, drift:1.5, thresh:50 };
+let params = { seed:12345, density:4, pSize:2.5, drift:1.5, thresh:40 };
 const defs = JSON.parse(JSON.stringify(params));
-let uploadedImg = null;
+let uploadedImg = false;
 let storedDataUrl = null;
-let particles = [], symAngles = [];
+let particles = [];
 let frame = 0;
 const MAX_FR = 300;
 let done = false;
 let cx, cy;
+let hasImage = false; // true = 图片粒子模式
 
 // ══════════════════════════════════════════════════════════════════
 function setup() {
@@ -144,10 +135,10 @@ function setup() {
     noiseDetail(4, 0.55);
     cx = width/2; cy = height/2;
     document.querySelector('.loading').style.display = 'none';
-    initFlowField(); // 默认流场
+    initFlowField();
 }
 
-// ── 默认流场（无图片时） ──
+// ── 默认流场 ──
 let flowField = [], cols, rows;
 const RES = 5;
 
@@ -162,28 +153,20 @@ function initFlowField() {
             flowField[y][x] = p5.Vector.fromAngle(a);
         }
     }
-    symAngles = [];
-    for (let i=0; i<params.sym; i++) symAngles.push(TWO_PI/params.sym*i);
     particles = [];
     for (let i=0; i<3500; i++) {
         let a = random(TWO_PI), r = random(0,60);
         particles.push({ x:cx+cos(a)*r, y:cy+sin(a)*r, px:cx+cos(a)*r, py:cy+sin(a)*r, md:random(200,540), sp:random(0.4,2.2), alive:true, src:'flow' });
     }
+    hasImage = false;
     background(6,6,13); frame=0; done=false; loop();
 }
 
 // ── 图片粒子 ──
 function processImage() {
-    randomSeed(params.seed); noiseSeed(params.seed);
-    symAngles = [];
-    for (let i=0; i<params.sym; i++) symAngles.push(TWO_PI/params.sym*i);
-
     if (!storedDataUrl) { initFlowField(); return; }
-
-    // 用原生 Image + Canvas 读取像素（同步可靠）
     let imgEl = new Image();
     imgEl.src = storedDataUrl;
-    // 等图片加载完（data URL 是同步/微异步的，这里需要确保尺寸可用）
     if (!imgEl.complete || imgEl.naturalWidth === 0) {
         imgEl.onload = () => processImageCore(imgEl);
         return;
@@ -193,8 +176,6 @@ function processImage() {
 
 function processImageCore(imgEl) {
     randomSeed(params.seed); noiseSeed(params.seed);
-    symAngles = [];
-    for (let i=0; i<params.sym; i++) symAngles.push(TWO_PI/params.sym*i);
 
     let iw = imgEl.naturalWidth || imgEl.width;
     let ih = imgEl.naturalHeight || imgEl.height;
@@ -202,7 +183,7 @@ function processImageCore(imgEl) {
     let sw = floor(iw*scale), sh = floor(ih*scale);
     let ox = (width-sw)/2, oy = (height-sh)/2;
 
-    // 原生 Canvas 绘制缩放后的图片
+    // 原生 Canvas 读像素
     let c = document.createElement('canvas');
     c.width = sw; c.height = sh;
     let ctx = c.getContext('2d');
@@ -215,20 +196,19 @@ function processImageCore(imgEl) {
     for (let y=0; y<sh; y+=step) {
         for (let x=0; x<sw; x+=step) {
             let idx = (y*sw + x)*4;
-            let r = data[idx], g = data[idx+1], b = data[idx+2], a = data[idx+3];
-            let bright = (r+g+b)/3;
-            if (bright >= params.thresh && a > 20) {
+            let rr = data[idx], gg = data[idx+1], bb = data[idx+2], aa = data[idx+3];
+            let bright = (rr+gg+bb)/3;
+            if (bright >= params.thresh && aa > 20) {
                 let px = ox + x;
                 let py = oy + y;
                 if (px < 0 || px >= width || py < 0 || py >= height) continue;
-                let hsb = rgbToHsb(r,g,b);
                 let count = bright > 200 ? 3 : bright > 140 ? 2 : 1;
                 for (let n=0; n<count; n++) {
                     particles.push({
                         x: px + random(-step/2, step/2),
                         y: py + random(-step/2, step/2),
                         ox: px, oy: py,
-                        h: hsb.h, s: hsb.s, b: hsb.b,
+                        r: rr, g: gg, b: bb,
                         bright: bright,
                         alive: true,
                         src: 'img',
@@ -237,100 +217,103 @@ function processImageCore(imgEl) {
             }
         }
     }
-    background(240,5,8);
+    hasImage = true;
+    background(6,6,13);
     frame=0; done=false;
-    loop();
+
+    // 静态模式直接一帧搞定
+    if (params.drift === 0) {
+        renderImageParticlesStatic();
+        noLoop();
+        done = true;
+    } else {
+        loop();
+    }
 }
 
-// RGB → HSB 转换
-function rgbToHsb(r,g,b) {
-    r/=255; g/=255; b/=255;
-    let mx=Math.max(r,g,b), mn=Math.min(r,g,b), d=mx-mn;
-    let h=0, s=mx===0?0:d/mx, v=mx;
-    if (d!==0) {
-        if (mx===r) h=((g-b)/d+(g<b?6:0))*60;
-        else if (mx===g) h=((b-r)/d+2)*60;
-        else h=((r-g)/d+4)*60;
+// ── 静态渲染：一次画出所有粒子，不走 draw 循环 ──
+function renderImageParticlesStatic() {
+    let ctx = drawingContext;
+    let ps = params.pSize;
+    let half = ps/2;
+    for (let p of particles) {
+        if (!p.alive) continue;
+        let a = map(p.bright, params.thresh, 255, 0.15, 0.85);
+        ctx.fillStyle = `rgba(${p.r},${p.g},${p.b},${a.toFixed(2)})`;
+        ctx.fillRect(p.x - half, p.y - half, ps, ps);
     }
-    return {h:h%360, s:s*100, b:v*100};
 }
 
 // ══════════════════════════════════════════════════════════════════
 function draw() {
-    // 淡出拖尾
-    noStroke(); fill(6,6,13, params.drift>0?7:255); rect(0,0,width,height);
+    if (hasImage) {
+        drawImageParticles();
+    } else {
+        drawFlowField();
+    }
+}
+
+// ── 图片粒子 draw（流动模式） ──
+function drawImageParticles() {
+    let ctx = drawingContext;
+    let ps = params.pSize;
+    let half = ps/2;
+    let thresh = params.thresh;
+    let drift = params.drift;
+
+    // 背景淡出
+    ctx.fillStyle = 'rgba(6,6,13,0.07)';
+    ctx.fillRect(0, 0, width, height);
+
+    for (let p of particles) {
+        if (!p.alive) continue;
+
+        if (drift > 0) {
+            let nx = noise(p.ox*0.005+frame*0.003, p.oy*0.005)*drift*2 - drift;
+            let ny = noise(p.ox*0.005+200, p.oy*0.005+frame*0.003)*drift*2 - drift;
+            p.x += nx;
+            p.y += ny;
+        }
+
+        let a = map(p.bright, thresh, 255, 0.12, 0.75);
+        ctx.fillStyle = `rgba(${p.r},${p.g},${p.b},${a.toFixed(2)})`;
+        ctx.fillRect(p.x - half, p.y - half, ps, ps);
+    }
+
+    frame++;
+    if (frame >= MAX_FR) { done = true; noLoop(); }
+}
+
+// ── 默认流场 draw ──
+function drawFlowField() {
+    noStroke(); fill(6,6,13, 8); rect(0,0,width,height);
 
     let alive = 0;
     for (let p of particles) {
         if (!p.alive) continue;
         alive++;
-
-        if (p.src==='flow') {
-            // ── 默认流场模式 ──
-            let col = constrain(floor(p.x/RES),0,cols-1);
-            let row = constrain(floor(p.y/RES),0,rows-1);
-            let fl = flowField[row][col];
-            p.px=p.x; p.py=p.y;
-            p.x+=fl.x*1.2; p.y+=fl.y*1.2;
-            let d = dist(cx,cy,p.x,p.y);
-            if (d>p.md||p.x<-20||p.x>width+20||p.y<-20||p.y>height+20) { p.alive=false; continue; }
-            let dr = constrain(d/p.md,0,1);
-            for (let sa of symAngles) {
-                let c=cos(sa),s=sin(sa);
-                let rx0=(p.px-cx)*c-(p.py-cy)*s+cx, ry0=(p.px-cx)*s+(p.py-cy)*c+cy;
-                let rx1=(p.x-cx)*c-(p.y-cy)*s+cx, ry1=(p.x-cx)*s+(p.y-cy)*c+cy;
-                let ang = atan2(ry1-cy,rx1-cx);
-                let h = map(ang,-PI,PI,0,360);
-                let alpha = 10*(1-dr*0.6);
-                stroke(h,85,95, alpha); strokeWeight(map(dr,0,1,1.5,0.6));
-                line(rx0,ry0,rx1,ry1);
-            }
-        } else {
-            // ── 图片粒子模式 ──
-            p.px = p.x; p.py = p.y;
-            if (params.drift > 0) {
-                // Perlin 噪声漂移
-                let nx = noise(p.ox*0.005+frame*0.003, p.oy*0.005)*params.drift*2 - params.drift;
-                let ny = noise(p.ox*0.005+200, p.oy*0.005+frame*0.003)*params.drift*2 - params.drift;
-                p.x += nx;
-                p.y += ny;
-            }
-            // 绘制（含对称）
-            let alpha = map(p.bright, params.thresh, 255, 15, 80);
-            for (let sa of symAngles) {
-                let c=cos(sa), s=sin(sa);
-                let rx = (p.x-cx)*c - (p.y-cy)*s + cx;
-                let ry = (p.x-cx)*s + (p.y-cy)*c + cy;
-                strokeWeight(params.pSize);
-                stroke(p.h, p.s, p.b, alpha);
-                point(rx, ry);
-            }
-        }
+        let col = constrain(floor(p.x/RES),0,cols-1);
+        let row = constrain(floor(p.y/RES),0,rows-1);
+        let fl = flowField[row][col];
+        p.px=p.x; p.py=p.y;
+        p.x+=fl.x*1.2; p.y+=fl.y*1.2;
+        let d = dist(cx,cy,p.x,p.y);
+        if (d>p.md||p.x<-20||p.x>width+20||p.y<-20||p.y>height+20) { p.alive=false; continue; }
+        let dr = constrain(d/p.md,0,1);
+        let ang = atan2(p.y-cy,p.x-cx);
+        let h = map(ang,-PI,PI,0,360);
+        stroke(h,85,95, 10*(1-dr*0.6));
+        strokeWeight(map(dr,0,1,1.5,0.6));
+        line(p.px,p.py,p.x,p.y);
     }
-
     frame++;
-    if (frame>=MAX_FR || (alive===0 && frame>10)) {
-        if (!done && uploadedImg) {
-            // 最后补一层高亮点
-            for (let p of particles) {
-                if (!p.alive || p.src!=='img' || p.bright<180) continue;
-                for (let sa of symAngles) {
-                    let c=cos(sa),s=sin(sa);
-                    let rx=(p.x-cx)*c-(p.y-cy)*s+cx, ry=(p.x-cx)*s+(p.y-cy)*c+cy;
-                    strokeWeight(params.pSize*0.6);
-                    stroke(p.h, p.s, p.b, 50);
-                    point(rx,ry);
-                }
-            }
-        }
-        done=true; noLoop();
-    }
+    if (frame>=MAX_FR || (alive===0 && frame>10)) { done=true; noLoop(); }
 }
 
 // ══════════════════════════════════════════════════════════════════
 // UI
-function up(k,v) {
-    params[k] = (k==='density'||k==='sym') ? parseInt(v) : parseFloat(v);
+function up(k, v) {
+    params[k] = (k==='density') ? parseInt(v) : parseFloat(v);
     document.getElementById(k+'-v').textContent = v;
     if (uploadedImg) processImage(); else initFlowField();
 }
@@ -349,8 +332,9 @@ function handleFile(file) {
     reader.readAsDataURL(file);
 }
 function clearImage() {
-    uploadedImg = null;
+    uploadedImg = false;
     storedDataUrl = null;
+    hasImage = false;
     document.getElementById('preview').style.display = 'none';
     document.getElementById('hint').style.display = '';
     document.getElementById('dropZone').classList.remove('has-img');
@@ -358,12 +342,11 @@ function clearImage() {
     initFlowField();
 }
 function regen() {
-    if (uploadedImg) processImage();
-    else initFlowField();
+    if (uploadedImg) processImage(); else initFlowField();
 }
 function reset() {
     params = JSON.parse(JSON.stringify(defs));
-    ['sym','density','pSize','drift','thresh'].forEach(k=>{
+    ['density','pSize','drift','thresh'].forEach(k=>{
         document.getElementById(k).value=params[k];
         document.getElementById(k+'-v').textContent=params[k];
     });
@@ -377,7 +360,7 @@ function nextSeed() { params.seed++; updateSeedDisp(); regen(); }
 function randSeed() { params.seed=floor(Math.random()*999999)+1; updateSeedDisp(); regen(); }
 window.addEventListener('load',()=>updateSeedDisp());
 
-// 拖拽上传
+// 拖拽
 document.addEventListener('DOMContentLoaded',()=>{
     let dz = document.getElementById('dropZone');
     dz.addEventListener('dragover',e=>{e.preventDefault();dz.style.borderColor='var(--orange)';});
