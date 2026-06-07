@@ -455,6 +455,11 @@ function resetAll() {
 function downloadPNG() {
     let cv = document.getElementById('gl-canvas');
     if (hasImage && cv.style.display!=='none') {
+        // 强制渲染一帧，确保缓冲区有内容
+        gl.clearColor(bgColor[0], bgColor[1], bgColor[2], 1.0);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        drawGL(glTime);
+        gl.finish();
         let a = document.createElement('a');
         a.download = 'particle-art-'+params.seed+'.png';
         a.href = cv.toDataURL('image/png');
