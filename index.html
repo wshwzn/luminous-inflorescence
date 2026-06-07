@@ -6,9 +6,6 @@
     <title>粒子画</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js">
     </script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&family=Lora:wght@400;500&display=swap" rel="stylesheet">
     <style>
         :root { --dark: #0f0f18; --panel: rgba(15,15,28,0.95); --text: #e8e6dc; --muted: #8a8a90; --orange: #d97757; --blue: #6a9bcc; --green: #788c5d; --border: rgba(255,255,255,0.06); }
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -40,9 +37,10 @@
         .seed-row { display: flex; gap: 6px; }
         .seed-row input { flex: 1; background: rgba(255,255,255,0.06); padding: 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); text-align: center; color: var(--text); font-family: 'Courier New', monospace; font-size: 14px; }
         .seed-row input:focus { outline: none; border-color: var(--orange); }
-        .canvas-area { flex: 1; display: flex; align-items: center; justify-content: center; min-width: 0; }
-        #cv { width: 100%; max-width: 1000px; border-radius: 12px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.6); background: #06060d; }
-        #cv canvas { display: block; width: 100% !important; height: auto !important; }
+        .canvas-area { flex: 1; display: flex; align-items: center; justify-content: center; min-width: 0; position: relative; }
+        #canvas-wrap { position: relative; width: 100%; max-width: 1000px; border-radius: 12px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.6); background: #06060d; }
+        #canvas-wrap canvas { display: block; width: 100% !important; height: auto !important; }
+        #gl-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
         .loading { display: flex; align-items: center; justify-content: center; height: 600px; font-size: 15px; color: var(--muted); font-family: 'Lora', serif; }
         @media (max-width: 600px) { .container { flex-direction: column; } .sidebar { width: 100%; } }
     </style>
@@ -65,9 +63,7 @@
 
     <div class="ctrl">
         <h3>种子</h3>
-        <div class="seed-row">
-            <input type="number" id="seedIn" value="12345" onchange="updateSeed()">
-        </div>
+        <div class="seed-row"><input type="number" id="seedIn" value="12345" onchange="updateSeed()"></div>
         <div class="btn-row" style="margin-top:6px;">
             <button class="btn sm b2" onclick="prevSeed()">← 上一个</button>
             <button class="btn sm b2" onclick="nextSeed()">下一个 →</button>
@@ -77,165 +73,86 @@
 
     <div class="ctrl">
         <h3>参数</h3>
-        <div class="row">
-            <label>粒子密度</label>
-            <input type="range" id="density" min="1" max="10" step="1" value="6" oninput="up('density',this.value)">
-            <span class="val" id="density-v">6</span>
-        </div>
-        <div class="row">
-            <label>粒子大小</label>
-            <input type="range" id="pSize" min="1" max="8" step="0.5" value="2.5" oninput="up('pSize',this.value)">
-            <span class="val" id="pSize-v">2.5</span>
-        </div>
-        <div class="row">
-            <label>晃动幅度</label>
-            <input type="range" id="drift" min="0" max="5" step="0.5" value="1" oninput="up('drift',this.value)">
-            <span class="val" id="drift-v">1.5</span>
-        </div>
-        <div class="row">
-            <label>亮度阈值</label>
-            <input type="range" id="thresh" min="10" max="200" step="5" value="40" oninput="up('thresh',this.value)">
-            <span class="val" id="thresh-v">40</span>
-        </div>
+        <div class="row"><label>粒子密度</label><input type="range" id="density" min="1" max="10" step="1" value="6" oninput="up('density',this.value)"><span class="val" id="density-v">6</span></div>
+        <div class="row"><label>粒子大小</label><input type="range" id="pSize" min="1" max="8" step="0.5" value="2.5" oninput="up('pSize',this.value)"><span class="val" id="pSize-v">2.5</span></div>
+        <div class="row"><label>晃动幅度</label><input type="range" id="drift" min="0" max="5" step="0.5" value="1" oninput="up('drift',this.value)"><span class="val" id="drift-v">1</span></div>
+        <div class="row"><label>亮度阈值</label><input type="range" id="thresh" min="10" max="200" step="5" value="40" oninput="up('thresh',this.value)"><span class="val" id="thresh-v">40</span></div>
     </div>
 
     <div class="ctrl">
         <h3>操作</h3>
-        <div class="btn-row">
-            <button class="btn" onclick="regen()">↻ 重播</button>
-            <button class="btn b2" onclick="reset()">重置</button>
-        </div>
-        <button class="btn b3" onclick="saveCanvas('particle-art-'+params.seed,'png')" style="margin-top:6px;">⬇ 下载 PNG</button>
+        <div class="btn-row"><button class="btn" onclick="regen()">↻ 重播</button><button class="btn b2" onclick="resetAll()">重置</button></div>
+        <button class="btn b3" onclick="downloadPNG()" style="margin-top:6px;">⬇ 下载 PNG</button>
     </div>
 </div>
 
 <div class="canvas-area">
-    <div id="cv"><div class="loading">请上传一张图片，或等待默认流场生成...</div></div>
+    <div id="canvas-wrap">
+        <canvas id="gl-canvas" style="display:none"></canvas>
+        <div id="p5-mount"></div>
+        <div class="loading" id="loading-msg">请上传一张图片，或等待默认流场生成...</div>
+    </div>
 </div>
 </div>
 
 <script>
-// ══════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════ 全局状态 ══════════════════════
 let params = { seed:12345, density:6, pSize:2.5, drift:1, thresh:40 };
 const defs = JSON.parse(JSON.stringify(params));
-let uploadedImg = false;
-let storedDataUrl = null;
-let particles = [];
-let frame = 0;
-const MAX_FR = 300;
-let done = false;
-let cx, cy;
-let hasImage = false; // true = 图片粒子模式
+let hasImage = false, storedDataUrl = null, uploadedImg = false;
+let frame = 0; const MAX_FR = 600;
+let particles = []; let cx, cy;
 
-// ══════════════════════════════════════════════════════════════════
-function setup() {
-    let c = createCanvas(1200, 1200, WEBGL);
-    c.parent('cv');
-    colorMode(HSB, 360, 100, 100, 100);
-    noiseDetail(4, 0.55);
-    cx = width/2; cy = height/2;
-    _gl = _renderer.GL;
-    initShader();
-    document.querySelector('.loading').style.display = 'none';
-    initFlowField();
-}
-
-// ── 自定义 GPU 着色器 ──
-let _gl = null;
-let _shader = null;
-let _vbo = null;
-let _gpuCount = 0;
-let _gpuData = null; // Float32Array cache
-
-const VERT = `
-attribute vec2 a_pos;
-attribute vec3 a_col;
-attribute float a_phase;
-attribute float a_bright;
-uniform float u_time;
-uniform float u_drift;
-uniform float u_ps;
-uniform float u_thresh;
-uniform vec2 u_res;
-varying vec3 v_col;
-varying float v_alpha;
-void main() {
-    float x = a_pos.x, y = a_pos.y;
-    if (u_drift > 0.0) {
-        float fx = 0.7 + fract(a_phase * 0.73) * 0.6;
-        float fy = 0.7 + fract(a_phase * 1.37) * 0.6;
-        x += sin(u_time * fx + a_phase) * u_drift * 3.5;
-        y += cos(u_time * fy + a_phase + 1.7) * u_drift * 3.5;
-    }
-    gl_Position = vec4(x / u_res.x * 2.0 - 1.0, 1.0 - y / u_res.y * 2.0, 0.0, 1.0);
-    gl_PointSize = u_ps;
-    v_col = a_col;
-    v_alpha = a_bright;
-}`;
-
-const FRAG = `
-precision mediump float;
-varying vec3 v_col;
-varying float v_alpha;
-void main() {
-    float d = length(gl_PointCoord - 0.5) * 2.0;
-    float a = v_alpha * (1.0 - smoothstep(0.6, 1.0, d));
-    gl_FragColor = vec4(v_col, a);
-}`;
-
-function initShader() {
-    let gl = _gl;
-    let vs = gl.createShader(gl.VERTEX_SHADER);
-    gl.shaderSource(vs, VERT); gl.compileShader(vs);
-    let fs = gl.createShader(gl.FRAGMENT_SHADER);
-    gl.shaderSource(fs, FRAG); gl.compileShader(fs);
-    _shader = gl.createProgram();
-    gl.attachShader(_shader, vs); gl.attachShader(_shader, fs);
-    gl.linkProgram(_shader);
-    gl.deleteShader(vs); gl.deleteShader(fs);
-}
-
-function uploadToGPU(arr) {
-    let gl = _gl;
-    _gpuData = new Float32Array(arr.length * 7);
-    for (let i = 0; i < arr.length; i++) {
-        let p = arr[i], j = i * 7;
-        _gpuData[j] = p.ox; _gpuData[j+1] = p.oy;
-        _gpuData[j+2] = p.r / 255; _gpuData[j+3] = p.g / 255; _gpuData[j+4] = p.b / 255;
-        _gpuData[j+5] = p.ph || random(TWO_PI);
-        _gpuData[j+6] = map(p.bright, params.thresh, 255, 0.12, 0.75);
-    }
-    if (!_vbo) _vbo = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, _vbo);
-    gl.bufferData(gl.ARRAY_BUFFER, _gpuData, gl.STATIC_DRAW);
-    _gpuCount = arr.length;
-}
-
-function bindAttribs() {
-    let gl = _gl, s = 7 * 4;
-    let a = gl.getAttribLocation(_shader, 'a_pos');
-    gl.enableVertexAttribArray(a); gl.vertexAttribPointer(a, 2, gl.FLOAT, false, s, 0);
-    a = gl.getAttribLocation(_shader, 'a_col');
-    gl.enableVertexAttribArray(a); gl.vertexAttribPointer(a, 3, gl.FLOAT, false, s, 8);
-    a = gl.getAttribLocation(_shader, 'a_phase');
-    gl.enableVertexAttribArray(a); gl.vertexAttribPointer(a, 1, gl.FLOAT, false, s, 20);
-    a = gl.getAttribLocation(_shader, 'a_bright');
-    gl.enableVertexAttribArray(a); gl.vertexAttribPointer(a, 1, gl.FLOAT, false, s, 24);
-}
-
-// ── 默认流场 ──
+// ═══════════════════════════════════ p5.js 流场 ═══════════════════
 let flowField = [], cols, rows;
 const RES = 5;
 
+new p5(function(p) {
+    p.setup = function() {
+        let c = p.createCanvas(1200, 1200);
+        c.parent('p5-mount');
+        p.colorMode(p.HSB, 360, 100, 100, 100);
+        p.noiseDetail(4, 0.55);
+        cx = p.width/2; cy = p.height/2;
+        initFlowField();
+        document.getElementById('loading-msg').style.display = 'none';
+    };
+
+    p.draw = function() {
+        if (hasImage) return; // 图片模式不画
+        if (!flowField.length) return;
+        p.noStroke(); p.fill(6,6,13, 8); p.rect(0,0,p.width,p.height);
+        let alive = 0;
+        for (let pt of particles) {
+            if (!pt.alive) continue; alive++;
+            let col = p.constrain(p.floor(pt.x/RES),0,cols-1);
+            let row = p.constrain(p.floor(pt.y/RES),0,rows-1);
+            let fl = flowField[row][col];
+            pt.px=pt.x; pt.py=pt.y; pt.x+=fl.x*1.2; pt.y+=fl.y*1.2;
+            let d = p.dist(cx,cy,pt.x,pt.y);
+            if (d>pt.md || pt.x<-20 || pt.x>p.width+20 || pt.y<-20 || pt.y>p.height+20) { pt.alive=false; continue; }
+            let dr = p.constrain(d/pt.md,0,1);
+            let ang = p.atan2(pt.y-cy,pt.x-cx);
+            p.stroke(p.map(ang,-p.PI,p.PI,0,360),85,95, 10*(1-dr*0.6));
+            p.strokeWeight(p.map(dr,0,1,1.5,0.6));
+            p.line(pt.px,pt.py,pt.x,pt.y);
+        }
+        frame++;
+        if (frame>=MAX_FR || (alive===0 && frame>10)) p.noLoop();
+    };
+});
+
 function initFlowField() {
+    hasImage = false;
+    document.getElementById('gl-canvas').style.display = 'none';
+    document.getElementById('p5-mount').style.display = 'block';
     randomSeed(params.seed); noiseSeed(params.seed);
-    cols = floor(width/RES); rows = floor(height/RES);
-    flowField = new Array(rows);
+    cols = floor(1200/RES); rows = floor(1200/RES);
+    flowField = Array(rows);
     for (let y=0; y<rows; y++) {
-        flowField[y] = new Array(cols);
+        flowField[y] = Array(cols);
         for (let x=0; x<cols; x++) {
-            let a = noise(x*RES*0.003, y*RES*0.003)*TWO_PI*3 + noise(x*RES*0.003+100, y*RES*0.003+100)*0.8;
-            flowField[y][x] = p5.Vector.fromAngle(a);
+            flowField[y][x] = p5.Vector.fromAngle(noise(x*RES*0.003,y*RES*0.003)*TWO_PI*3+noise(x*RES*0.003+100,y*RES*0.003+100)*0.8);
         }
     }
     particles = [];
@@ -243,144 +160,166 @@ function initFlowField() {
         let a = random(TWO_PI), r = random(0,60);
         particles.push({ x:cx+cos(a)*r, y:cy+sin(a)*r, px:cx+cos(a)*r, py:cy+sin(a)*r, md:random(200,540), sp:random(0.4,2.2), alive:true, src:'flow' });
     }
-    hasImage = false; _gpuCount = 0;
-    background(6,6,13); frame=0; done=false; loop();
+    frame=0; window.loop();
 }
 
-// ── 图片粒子 ──
+// ═══════════════════════════════════ WebGL 粒子引擎 ═══════════════
+let gl = null, glProgram = null, glVBO = null, glCount = 0;
+let glRAF = null, glTime = 0;
+
+const VS = `#version 100
+attribute vec2 a_pos; attribute vec3 a_col; attribute float a_phase;
+uniform float u_time, u_drift, u_ps, u_w, u_h;
+varying vec3 v_col; varying float v_alpha;
+void main(){
+    float x=a_pos.x,y=a_pos.y;
+    if(u_drift>0.0){
+        float fx=0.7+fract(a_phase*0.73)*0.6,fy=0.7+fract(a_phase*1.37)*0.6;
+        x+=sin(u_time*fx+a_phase)*u_drift*3.5;
+        y+=cos(u_time*fy+a_phase+1.7)*u_drift*3.5;
+    }
+    gl_Position=vec4(x/u_w*2.0-1.0,1.0-y/u_h*2.0,0.0,1.0);
+    gl_PointSize=u_ps;
+    v_col=a_col;
+    v_alpha=0.5;
+}`;
+
+const FS = `#version 100
+precision mediump float;
+varying vec3 v_col; varying float v_alpha;
+void main(){
+    float d=length(gl_PointCoord-vec2(0.5))*2.0;
+    float a=v_alpha*(1.0-smoothstep(0.6,1.0,d));
+    gl_FragColor=vec4(v_col,a);
+}`;
+
+function initGL() {
+    let cv = document.getElementById('gl-canvas');
+    cv.width = 1200; cv.height = 1200;
+    gl = cv.getContext('webgl', {alpha:true, premultipliedAlpha:false}) ||
+         cv.getContext('experimental-webgl', {alpha:true, premultipliedAlpha:false});
+    if (!gl) { alert('浏览器不支持WebGL'); return; }
+
+    function mkShader(type, src) {
+        let s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
+        if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) console.error(gl.getShaderInfoLog(s));
+        return s;
+    }
+    glProgram = gl.createProgram();
+    gl.attachShader(glProgram, mkShader(gl.VERTEX_SHADER, VS));
+    gl.attachShader(glProgram, mkShader(gl.FRAGMENT_SHADER, FS));
+    gl.linkProgram(glProgram);
+    if (!gl.getProgramParameter(glProgram, gl.LINK_STATUS)) console.error(gl.getProgramInfoLog(glProgram));
+    glVBO = gl.createBuffer();
+}
+
+function uploadGL(arr) {
+    let buf = new Float32Array(arr.length * 6);
+    for (let i=0; i<arr.length; i++) {
+        let p = arr[i], j = i*6;
+        buf[j]=p.ox; buf[j+1]=p.oy;
+        buf[j+2]=p.r/255; buf[j+3]=p.g/255; buf[j+4]=p.b/255;
+        buf[j+5]=p.ph||Math.random()*6.283;
+    }
+    gl.bindBuffer(gl.ARRAY_BUFFER, glVBO);
+    gl.bufferData(gl.ARRAY_BUFFER, buf, gl.STATIC_DRAW);
+    glCount = arr.length;
+}
+
+function drawGL(time, driftOverride) {
+    gl.viewport(0, 0, 1200, 1200);
+    gl.disable(gl.DEPTH_TEST);
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    gl.useProgram(glProgram);
+    let d = driftOverride !== undefined ? driftOverride : params.drift;
+    gl.uniform1f(gl.getUniformLocation(glProgram,'u_time'), time);
+    gl.uniform1f(gl.getUniformLocation(glProgram,'u_drift'), d);
+    gl.uniform1f(gl.getUniformLocation(glProgram,'u_ps'), params.pSize);
+    gl.uniform1f(gl.getUniformLocation(glProgram,'u_w'), 1200);
+    gl.uniform1f(gl.getUniformLocation(glProgram,'u_h'), 1200);
+
+    let stride = 6*4;
+    let bind = function(name, size, off) {
+        let loc = gl.getAttribLocation(glProgram, name);
+        gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, size, gl.FLOAT, false, stride, off);
+    };
+    bind('a_pos', 2, 0); bind('a_col', 3, 8); bind('a_phase', 1, 20);
+    gl.drawArrays(gl.POINTS, 0, glCount);
+}
+
+function glRenderLoop() {
+    if (!hasImage || glCount===0) { glRAF = requestAnimationFrame(glRenderLoop); return; }
+    if (params.drift > 0) glTime += 0.04;
+
+    // 背景淡出
+    gl.clearColor(0.024, 0.024, 0.051, 0.07);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+
+    drawGL(glTime);
+    frame++;
+    if (frame >= MAX_FR && params.drift===0) { /* static stays */ }
+    glRAF = requestAnimationFrame(glRenderLoop);
+}
+
+function startGLoop() {
+    if (glRAF) cancelAnimationFrame(glRAF);
+    glTime = 0;
+    glRAF = requestAnimationFrame(glRenderLoop);
+}
+
+// ═══════════════════════════════════ 图片处理 ═══════════════════
 function processImage() {
     if (!storedDataUrl) { initFlowField(); return; }
     let imgEl = new Image();
     imgEl.src = storedDataUrl;
-    if (!imgEl.complete || imgEl.naturalWidth === 0) {
-        imgEl.onload = () => processImageCore(imgEl);
-        return;
-    }
+    if (!imgEl.complete || imgEl.naturalWidth===0) { imgEl.onload=()=>processImageCore(imgEl); return; }
     processImageCore(imgEl);
 }
 
 function processImageCore(imgEl) {
     randomSeed(params.seed); noiseSeed(params.seed);
-    let iw = imgEl.naturalWidth || imgEl.width;
-    let ih = imgEl.naturalHeight || imgEl.height;
-    let scale = max(width/iw, height/ih);
-    let sw = floor(iw*scale), sh = floor(ih*scale);
-    let ox = (width-sw)/2, oy = (height-sh)/2;
+    let iw=imgEl.naturalWidth||imgEl.width, ih=imgEl.naturalHeight||imgEl.height;
+    let scale = Math.max(1200/iw, 1200/ih);
+    let sw=Math.floor(iw*scale), sh=Math.floor(ih*scale);
+    let ox=(1200-sw)/2, oy=(1200-sh)/2;
 
-    let c = document.createElement('canvas');
-    c.width = sw; c.height = sh;
-    let ctx = c.getContext('2d');
-    ctx.drawImage(imgEl, 0, 0, sw, sh);
-    let data = ctx.getImageData(0, 0, sw, sh).data;
+    let c=document.createElement('canvas'); c.width=sw; c.height=sh;
+    let ctx=c.getContext('2d'); ctx.drawImage(imgEl,0,0,sw,sh);
+    let data=ctx.getImageData(0,0,sw,sh).data;
 
-    let step = max(2, floor(16 - params.density * 1.4));
-    const MAX_P = 150000;
-    particles = [];
+    let step=Math.max(2, Math.floor(16-params.density*1.4));
+    const MAX_P=150000;
+    particles=[];
 
     sample: for (let y=0; y<sh; y+=step) {
         for (let x=0; x<sw; x+=step) {
-            let idx = (y*sw + x)*4;
-            let rr = data[idx], gg = data[idx+1], bb = data[idx+2], aa = data[idx+3];
-            let bright = (rr+gg+bb)/3;
-            if (bright >= params.thresh && aa > 20) {
-                let px = ox + x, py = oy + y;
-                if (px < 0 || px >= width || py < 0 || py >= height) continue;
-                let count = bright > 200 ? 3 : bright > 140 ? 2 : 1;
+            let idx=(y*sw+x)*4;
+            let rr=data[idx], gg=data[idx+1], bb=data[idx+2], aa=data[idx+3];
+            let bright=(rr+gg+bb)/3;
+            if (bright>=params.thresh && aa>20) {
+                let px=ox+x, py=oy+y;
+                if (px<0||px>=1200||py<0||py>=1200) continue;
+                let count=bright>200?3:bright>140?2:1;
                 for (let n=0; n<count; n++) {
-                    if (particles.length >= MAX_P) break sample;
-                    particles.push({
-                        x: px+random(-step/2,step/2), y: py+random(-step/2,step/2),
-                        ox: px, oy: py,
-                        r: rr, g: gg, b: bb, bright: bright,
-                        ph: random(TWO_PI),
-                    });
+                    if (particles.length>=MAX_P) break sample;
+                    particles.push({ox:px+random(-step/2,step/2), oy:py+random(-step/2,step/2), r:rr, g:gg, b:bb, ph:random(6.283)});
                 }
             }
         }
     }
 
-    // 上传到 GPU
-    uploadToGPU(particles);
+    // 切到 WebGL 画布
     hasImage = true;
-    background(6,6,13);
-    frame=0; done=false;
+    document.getElementById('p5-mount').style.display = 'none';
+    document.getElementById('gl-canvas').style.display = 'block';
 
-    if (params.drift === 0) {
-        drawParticlesRaw(0); // 静态：u_time=0，u_drift=0
-        noLoop(); done = true;
-    } else {
-        loop();
-    }
+    if (!gl) initGL();
+    uploadGL(particles);
+    frame=0; startGLoop();
 }
 
-// ══════════════════════════════════════════════════════════════════
-function draw() {
-    if (hasImage) {
-        drawImageParticlesGPU();
-    } else {
-        resetMatrix(); ortho(); translate(-width/2, -height/2);
-        drawFlowField();
-    }
-}
-
-// ── 纯 WebGL 粒子渲染 ──
-function drawParticlesRaw(time, driftOverride) {
-    let gl = _gl;
-    gl.disable(gl.DEPTH_TEST);
-    gl.enable(gl.BLEND);
-    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-    gl.useProgram(_shader);
-    let d = driftOverride !== undefined ? driftOverride : params.drift;
-    gl.uniform1f(gl.getUniformLocation(_shader,'u_time'), time);
-    gl.uniform1f(gl.getUniformLocation(_shader,'u_drift'), d);
-    gl.uniform1f(gl.getUniformLocation(_shader,'u_ps'), params.pSize);
-    gl.uniform1f(gl.getUniformLocation(_shader,'u_thresh'), params.thresh/255);
-    gl.uniform2f(gl.getUniformLocation(_shader,'u_res'), width, height);
-    bindAttribs();
-    gl.drawArrays(gl.POINTS, 0, _gpuCount);
-}
-
-function drawImageParticlesGPU() {
-    if (_gpuCount === 0) return;
-
-    // 1. 背景淡出（用 p5.js）
-    push();
-    resetMatrix(); ortho(); translate(-width/2, -height/2);
-    colorMode(RGB, 255); noStroke(); fill(6,6,13, 18); rect(0,0,width,height);
-    pop();
-
-    // 2. 纯 GPU 画粒子
-    drawParticlesRaw(frame * 0.04);
-
-    frame++;
-    if (frame >= MAX_FR) { done = true; noLoop(); }
-}
-
-// ── 默认流场 draw ──
-function drawFlowField() {
-    noStroke(); fill(6,6,13, 8); rect(0,0,width,height);
-    let alive = 0;
-    for (let p of particles) {
-        if (!p.alive) continue; alive++;
-        let col = constrain(floor(p.x/RES),0,cols-1);
-        let row = constrain(floor(p.y/RES),0,rows-1);
-        let fl = flowField[row][col];
-        p.px=p.x; p.py=p.y;
-        p.x+=fl.x*1.2; p.y+=fl.y*1.2;
-        let d = dist(cx,cy,p.x,p.y);
-        if (d>p.md||p.x<-20||p.x>width+20||p.y<-20||p.y>height+20) { p.alive=false; continue; }
-        let dr = constrain(d/p.md,0,1);
-        let ang = atan2(p.y-cy,p.x-cx);
-        stroke(map(ang,-PI,PI,0,360),85,95, 10*(1-dr*0.6));
-        strokeWeight(map(dr,0,1,1.5,0.6));
-        line(p.px,p.py,p.x,p.y);
-    }
-    frame++;
-    if (frame>=MAX_FR || (alive===0 && frame>10)) { done=true; noLoop(); }
-}
-
-// ══════════════════════════════════════════════════════════════════
-// UI
+// ═══════════════════════════════ UI ═════════════════════════
 function up(k, v) {
     params[k] = (k==='density') ? parseInt(v) : parseFloat(v);
     document.getElementById(k+'-v').textContent = v;
@@ -390,8 +329,7 @@ function handleFile(file) {
     if (!file) return;
     let reader = new FileReader();
     reader.onload = function(e) {
-        storedDataUrl = e.target.result;
-        uploadedImg = true;
+        storedDataUrl = e.target.result; uploadedImg = true;
         document.getElementById('preview').src = e.target.result;
         document.getElementById('preview').style.display = 'block';
         document.getElementById('hint').style.display = 'none';
@@ -401,32 +339,39 @@ function handleFile(file) {
     reader.readAsDataURL(file);
 }
 function clearImage() {
-    uploadedImg = false;
-    storedDataUrl = null;
-    hasImage = false;
+    uploadedImg = false; storedDataUrl = null;
     document.getElementById('preview').style.display = 'none';
     document.getElementById('hint').style.display = '';
     document.getElementById('dropZone').classList.remove('has-img');
     document.getElementById('fileIn').value = '';
     initFlowField();
 }
-function regen() {
-    if (uploadedImg) processImage(); else initFlowField();
-}
-function reset() {
+function regen() { if (uploadedImg) processImage(); else initFlowField(); }
+function resetAll() {
     params = JSON.parse(JSON.stringify(defs));
     ['density','pSize','drift','thresh'].forEach(k=>{
-        document.getElementById(k).value=params[k];
-        document.getElementById(k+'-v').textContent=params[k];
+        document.getElementById(k).value=params[k]; document.getElementById(k+'-v').textContent=params[k];
     });
     updateSeedDisp();
     if (uploadedImg) processImage(); else initFlowField();
 }
+function downloadPNG() {
+    let cv = document.getElementById('gl-canvas');
+    if (hasImage && cv.style.display!=='none') {
+        let a = document.createElement('a');
+        a.download = 'particle-art-'+params.seed+'.png';
+        a.href = cv.toDataURL('image/png');
+        a.click();
+    } else {
+        saveCanvas('particle-art-'+params.seed, 'png');
+    }
+}
+
 function updateSeedDisp() { document.getElementById('seedIn').value = params.seed; }
 function updateSeed() { let v=parseInt(document.getElementById('seedIn').value); if(v&&v>0){params.seed=v;regen();}else updateSeedDisp(); }
 function prevSeed() { params.seed=Math.max(1,params.seed-1); updateSeedDisp(); regen(); }
 function nextSeed() { params.seed++; updateSeedDisp(); regen(); }
-function randSeed() { params.seed=floor(Math.random()*999999)+1; updateSeedDisp(); regen(); }
+function randSeed() { params.seed=Math.floor(Math.random()*999999)+1; updateSeedDisp(); regen(); }
 window.addEventListener('load',()=>updateSeedDisp());
 
 // 拖拽
