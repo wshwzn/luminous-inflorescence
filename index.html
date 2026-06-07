@@ -236,11 +236,14 @@ void main(){
         float ring=exp(-abs(dist-u_ripple.z)/50.0);
         if(dist>0.0){x+=dx/dist*ring*35.0;y+=dy/dist*ring*35.0;}
     }
-    // 沉降弹回
+    // 粒子散开弹回（每颗粒子方向不同，错开时序）
     if(u_settle>0.0){
-        float s=sin(u_settle*3.14159)*200.0;
-        float wob=sin(a_pos.x*0.04+a_pos.y*0.03)*s*0.3;
-        y+=s-wob;
+        float delay=fract(a_phase*0.73)*0.25;
+        float t=clamp((u_settle-delay)*1.6, 0.0, 1.0);
+        float s=sin(t*3.14159);
+        float ang=a_phase*6.283;
+        x+=cos(ang)*s*70.0;
+        y+=sin(ang)*s*70.0;
     }
     // 鼠标推开粒子
     if(u_cursor.z>0.0){
