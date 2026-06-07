@@ -75,6 +75,7 @@
         <div class="row"><label>粒子密度</label><input type="range" id="density" min="1" max="10" step="1" value="6" oninput="up('density',this.value)"><span class="val" id="density-v">6</span></div>
         <div class="row"><label>粒子大小</label><input type="range" id="pSize" min="1" max="8" step="0.5" value="2.5" oninput="up('pSize',this.value)"><span class="val" id="pSize-v">2.5</span></div>
         <div class="row"><label>晃动幅度</label><input type="range" id="drift" min="0" max="5" step="0.5" value="1" oninput="up('drift',this.value)"><span class="val" id="drift-v">1</span></div>
+        <div class="row"><label>晃动速度</label><input type="range" id="speed" min="0.1" max="2" step="0.1" value="0.5" oninput="up('speed',this.value)"><span class="val" id="speed-v">0.5</span></div>
         <div class="row"><label>亮度阈值</label><input type="range" id="thresh" min="0" max="200" step="5" value="10" oninput="up('thresh',this.value)"><span class="val" id="thresh-v">10</span></div>
     </div>
 
@@ -96,7 +97,7 @@
 
 <script>
 // ═══════════════════════════════════ 全局状态 ══════════════════════
-let params = { seed:12345, density:6, pSize:2.5, drift:1, thresh:10 };
+let params = { seed:12345, density:6, pSize:2.5, drift:1, speed:0.5, thresh:10 };
 const defs = JSON.parse(JSON.stringify(params));
 let hasImage = false, storedDataUrl = null, uploadedImg = false;
 let frame = 0; const MAX_FR = 600;
@@ -273,7 +274,7 @@ function drawGL(time, driftOverride) {
 
 function glRenderLoop() {
     if (!hasImage || glCount===0) { glRAF = requestAnimationFrame(glRenderLoop); return; }
-    if (params.drift > 0) glTime += 0.04;
+    if (params.drift > 0) glTime += 0.04 * params.speed * 2;
 
     gl.clearColor(0.12, 0.12, 0.15, 1.0);
     gl.clear(gl.COLOR_BUFFER_BIT);
@@ -371,7 +372,7 @@ function clearImage() {
 function regen() { if (uploadedImg) processImage(); else initFlowField(); }
 function resetAll() {
     params = JSON.parse(JSON.stringify(defs));
-    ['density','pSize','drift','thresh'].forEach(k=>{
+    ['density','pSize','drift','speed','thresh'].forEach(k=>{
         document.getElementById(k).value=params[k]; document.getElementById(k+'-v').textContent=params[k];
     });
     updateSeedDisp();
