@@ -264,8 +264,7 @@ function glRenderLoop() {
     drawGL(glTime);
     frame++;
     if (params.drift === 0 && frame > 1) { glRAF = null; return; } // 静态一帧即停
-    if (frame >= MAX_FR) { glRAF = null; return; }
-    glRAF = requestAnimationFrame(glRenderLoop);
+    glRAF = requestAnimationFrame(glRenderLoop); // 晃动模式一直跑
 }
 
 function startGLoop() {
