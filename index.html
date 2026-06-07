@@ -3,683 +3,357 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>万花筒流光</title>
+    <title>粒子画</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js">
     </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&family=Lora:wght@400;500&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --anthropic-dark: #141413;
-            --anthropic-light: #faf9f5;
-            --anthropic-mid-gray: #b0aea5;
-            --anthropic-light-gray: #e8e6dc;
-            --anthropic-orange: #d97757;
-            --anthropic-blue: #6a9bcc;
-            --anthropic-green: #788c5d;
-        }
-
+        :root { --dark: #0f0f18; --panel: rgba(15,15,28,0.95); --text: #e8e6dc; --muted: #8a8a90; --orange: #d97757; --blue: #6a9bcc; --green: #788c5d; --border: rgba(255,255,255,0.06); }
         * { margin: 0; padding: 0; box-sizing: border-box; }
-
-        body {
-            font-family: 'Poppins', sans-serif;
-            background: linear-gradient(135deg, #0d0d1a 0%, #0f0f25 50%, #080812 100%);
-            min-height: 100vh;
-            color: var(--anthropic-light);
-        }
-
-        .container {
-            display: flex;
-            min-height: 100vh;
-            padding: 20px;
-            gap: 20px;
-        }
-
-        .sidebar {
-            width: 320px;
-            flex-shrink: 0;
-            background: rgba(15, 15, 28, 0.94);
-            backdrop-filter: blur(10px);
-            padding: 24px;
-            border-radius: 12px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-            overflow-y: auto;
-            overflow-x: hidden;
-            border: 1px solid rgba(255, 255, 255, 0.06);
-        }
-
-        .sidebar h1 {
-            font-family: 'Lora', serif;
-            font-size: 24px;
-            font-weight: 500;
-            color: #faf9f5;
-            margin-bottom: 8px;
-        }
-
-        .sidebar .subtitle {
-            color: #8a8a90;
-            font-size: 13px;
-            margin-bottom: 32px;
-            line-height: 1.5;
-        }
-
-        .control-section {
-            margin-bottom: 28px;
-        }
-
-        .control-section h3 {
-            font-size: 16px;
-            font-weight: 600;
-            color: #e8e6dc;
-            margin-bottom: 14px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .control-section h3::before {
-            content: '•';
-            color: var(--anthropic-orange);
-            font-weight: bold;
-        }
-
-        .seed-input {
-            width: 100%;
-            background: rgba(255, 255, 255, 0.06);
-            padding: 12px;
-            border-radius: 8px;
-            font-family: 'Courier New', monospace;
-            font-size: 14px;
-            margin-bottom: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            text-align: center;
-            color: #e8e6dc;
-        }
-
-        .seed-input:focus {
-            outline: none;
-            border-color: var(--anthropic-orange);
-            box-shadow: 0 0 0 2px rgba(217, 119, 87, 0.15);
-            background: rgba(255, 255, 255, 0.1);
-        }
-
-        .seed-controls {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 8px;
-            margin-bottom: 8px;
-        }
-
-        .control-group {
-            margin-bottom: 18px;
-        }
-
-        .control-group label {
-            display: block;
-            font-size: 14px;
-            font-weight: 500;
-            color: #e8e6dc;
-            margin-bottom: 8px;
-        }
-
-        .slider-container {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .slider-container input[type="range"] {
-            flex: 1;
-            height: 4px;
-            background: rgba(255, 255, 255, 0.12);
-            border-radius: 2px;
-            outline: none;
-            -webkit-appearance: none;
-        }
-
-        .slider-container input[type="range"]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            width: 16px;
-            height: 16px;
-            background: var(--anthropic-orange);
-            border-radius: 50%;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .slider-container input[type="range"]::-webkit-slider-thumb:hover {
-            transform: scale(1.1);
-            background: #c86641;
-        }
-
-        .value-display {
-            font-family: 'Courier New', monospace;
-            font-size: 12px;
-            color: #8a8a90;
-            min-width: 50px;
-            text-align: right;
-        }
-
-        .color-picker-container {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .color-picker-container input[type="color"] {
-            width: 32px;
-            height: 32px;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            background: none;
-            padding: 0;
-        }
-
-        .color-value {
-            font-family: 'Courier New', monospace;
-            font-size: 12px;
-            color: #8a8a90;
-        }
-
-        .color-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-        }
-
-        .button {
-            background: var(--anthropic-orange);
-            color: white;
-            border: none;
-            padding: 10px 16px;
-            border-radius: 6px;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            width: 100%;
-        }
-
-        .button:hover { background: #c86641; transform: translateY(-1px); }
-        .button:active { transform: translateY(0); }
-        .button.secondary { background: var(--anthropic-blue); }
-        .button.secondary:hover { background: #5a8bb8; }
-        .button.tertiary { background: var(--anthropic-green); }
-        .button.tertiary:hover { background: #6b7b52; }
-
-        .button-row {
-            display: flex;
-            gap: 8px;
-        }
-        .button-row .button { flex: 1; }
-
-        .canvas-area {
-            flex: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-width: 0;
-        }
-
-        #canvas-container {
-            width: 100%;
-            max-width: 1000px;
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
-            background: #06060d;
-        }
-
-        #canvas-container canvas {
-            display: block;
-            width: 100% !important;
-            height: auto !important;
-        }
-
-        .loading {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            height: 600px;
-            font-size: 16px;
-            color: #8a8a90;
-            font-family: 'Lora', serif;
-        }
-
-        @media (max-width: 600px) {
-            .container { flex-direction: column; }
-            .sidebar { width: 100%; }
-            .canvas-area { padding: 20px; }
-        }
+        body { font-family: 'Poppins', sans-serif; background: var(--dark); min-height: 100vh; color: var(--text); }
+        .container { display: flex; min-height: 100vh; padding: 20px; gap: 20px; }
+        .sidebar { width: 320px; flex-shrink: 0; background: var(--panel); backdrop-filter: blur(10px); padding: 24px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); overflow-y: auto; overflow-x: hidden; border: 1px solid var(--border); }
+        .sidebar h2 { font-family: 'Lora', serif; font-size: 22px; font-weight: 500; color: #faf9f5; margin-bottom: 4px; }
+        .sidebar .subtitle { color: var(--muted); font-size: 12px; margin-bottom: 24px; }
+        .ctrl { margin-bottom: 24px; }
+        .ctrl h3 { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+        .ctrl h3::before { content: '•'; color: var(--orange); font-weight: bold; }
+        .row { display: flex; gap: 6px; align-items: center; }
+        .row label { font-size: 13px; color: var(--muted); white-space: nowrap; }
+        .row input[type="range"] { flex: 1; height: 4px; background: rgba(255,255,255,0.12); border-radius: 2px; outline: none; -webkit-appearance: none; }
+        .row input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; background: var(--orange); border-radius: 50%; cursor: pointer; }
+        .val { font-family: 'Courier New', monospace; font-size: 11px; color: var(--muted); min-width: 32px; text-align: right; }
+        .btn { background: var(--orange); color: #fff; border: none; padding: 10px 14px; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.15s; width: 100%; }
+        .btn:hover { background: #c86641; transform: translateY(-1px); }
+        .btn.b2 { background: var(--blue); } .btn.b2:hover { background: #5a8bb8; }
+        .btn.b3 { background: var(--green); } .btn.b3:hover { background: #6b7b52; }
+        .btn.sm { padding: 6px 10px; font-size: 12px; }
+        .btn-row { display: flex; gap: 6px; } .btn-row .btn { flex: 1; }
+        .upload-zone { border: 2px dashed rgba(255,255,255,0.15); border-radius: 8px; padding: 16px; text-align: center; cursor: pointer; transition: all 0.2s; margin-bottom: 8px; }
+        .upload-zone:hover { border-color: var(--orange); background: rgba(217,119,87,0.05); }
+        .upload-zone.has-img { border-style: solid; border-color: var(--green); padding: 8px; }
+        .upload-zone img { max-width: 100%; max-height: 120px; border-radius: 4px; }
+        .upload-zone .hint { font-size: 13px; color: var(--muted); }
+        .upload-zone input { display: none; }
+        .seed-row { display: flex; gap: 6px; }
+        .seed-row input { flex: 1; background: rgba(255,255,255,0.06); padding: 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); text-align: center; color: var(--text); font-family: 'Courier New', monospace; font-size: 14px; }
+        .seed-row input:focus { outline: none; border-color: var(--orange); }
+        .canvas-area { flex: 1; display: flex; align-items: center; justify-content: center; min-width: 0; }
+        #cv { width: 100%; max-width: 1000px; border-radius: 12px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.6); background: #06060d; }
+        #cv canvas { display: block; width: 100% !important; height: auto !important; }
+        .loading { display: flex; align-items: center; justify-content: center; height: 600px; font-size: 15px; color: var(--muted); font-family: 'Lora', serif; }
+        @media (max-width: 600px) { .container { flex-direction: column; } .sidebar { width: 100%; } }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="sidebar">
-            <h1>万花筒流光</h1>
-            <div class="subtitle">对称之美 × 噪声流场 · 每个种子绽放独一无二的几何曼荼罗</div>
+<div class="container">
+<div class="sidebar">
+    <h2>粒子画</h2>
+    <div class="subtitle">上传图片 → 生成粒子艺术品</div>
 
-            <!-- 种子 -->
-            <div class="control-section">
-                <h3>种子</h3>
-                <input type="number" id="seed-input" class="seed-input" value="12345" onchange="updateSeed()">
-                <div class="seed-controls">
-                    <button class="button secondary" onclick="previousSeed()">← 上一个</button>
-                    <button class="button secondary" onclick="nextSeed()">下一个 →</button>
-                </div>
-                <button class="button tertiary" onclick="randomSeedAndUpdate()">↻ 随机</button>
-            </div>
-
-            <!-- 参数 -->
-            <div class="control-section">
-                <h3>参数</h3>
-
-                <div class="control-group">
-                    <label>对称折叠 / Symmetry</label>
-                    <div class="slider-container">
-                        <input type="range" id="symmetry" min="2" max="16" step="1" value="8" oninput="updateParam('symmetry', parseInt(this.value))">
-                        <span class="value-display" id="symmetry-value">8</span>
-                    </div>
-                </div>
-
-                <div class="control-group">
-                    <label>粒子数量</label>
-                    <div class="slider-container">
-                        <input type="range" id="particleCount" min="1000" max="8000" step="500" value="3500" oninput="updateParam('particleCount', parseInt(this.value))">
-                        <span class="value-display" id="particleCount-value">3500</span>
-                    </div>
-                </div>
-
-                <div class="control-group">
-                    <label>噪声强度</label>
-                    <div class="slider-container">
-                        <input type="range" id="noiseMagnitude" min="0.5" max="8.0" step="0.5" value="5.0" oninput="updateParam('noiseMagnitude', parseFloat(this.value))">
-                        <span class="value-display" id="noiseMagnitude-value">5.0</span>
-                    </div>
-                </div>
-
-                <div class="control-group">
-                    <label>噪声尺度</label>
-                    <div class="slider-container">
-                        <input type="range" id="noiseScale" min="0.001" max="0.02" step="0.001" value="0.003" oninput="updateParam('noiseScale', parseFloat(this.value))">
-                        <span class="value-display" id="noiseScale-value">0.003</span>
-                    </div>
-                </div>
-
-                <div class="control-group">
-                    <label>流速</label>
-                    <div class="slider-container">
-                        <input type="range" id="flowSpeed" min="0.3" max="3.0" step="0.1" value="1.2" oninput="updateParam('flowSpeed', parseFloat(this.value))">
-                        <span class="value-display" id="flowSpeed-value">1.2</span>
-                    </div>
-                </div>
-
-                <div class="control-group">
-                    <label>轨迹透明度</label>
-                    <div class="slider-container">
-                        <input type="range" id="trailOpacity" min="2" max="40" step="2" value="10" oninput="updateParam('trailOpacity', parseFloat(this.value))">
-                        <span class="value-display" id="trailOpacity-value">10</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 颜色 -->
-            <div class="control-section">
-                <h3>颜色</h3>
-                <div class="color-grid">
-                    <div>
-                        <input type="color" id="bgColor" value="#06060d" onchange="updateBgColor(this.value)" style="width:100%;height:36px;border:none;border-radius:6px;cursor:pointer;background:none;padding:0;">
-                        <span style="font-size:11px;color:#8a8a90;">背景色</span>
-                    </div>
-                    <div>
-                        <select id="colorScheme" onchange="updateColorScheme(this.value)" style="width:100%;height:36px;border-radius:6px;background:rgba(255,255,255,0.08);color:#e8e6dc;border:1px solid rgba(255,255,255,0.1);padding:0 8px;font-size:13px;cursor:pointer;">
-                            <option value="rainbow">🌈 彩虹</option>
-                            <option value="ocean">🌊 深海</option>
-                            <option value="fire" selected>🔥 烈焰</option>
-                            <option value="aurora">🌌 极光</option>
-                            <option value="neon">💜 霓虹</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 操作 -->
-            <div class="control-section">
-                <h3>操作</h3>
-                <div class="button-row">
-                    <button class="button" onclick="regenerate()">↻ 重播</button>
-                    <button class="button secondary" onclick="resetParameters()">重置</button>
-                </div>
-                <button class="button tertiary" onclick="downloadPNG()" style="margin-top:8px;">⬇ 下载 PNG</button>
-            </div>
+    <!-- 上传 -->
+    <div class="ctrl">
+        <h3>上传图片</h3>
+        <div class="upload-zone" id="dropZone" onclick="document.getElementById('fileIn').click()">
+            <img id="preview" style="display:none">
+            <span class="hint" id="hint">📁 点击选择图片<br><small>或拖拽图片到这里</small></span>
+            <input type="file" id="fileIn" accept="image/*" onchange="handleFile(this.files[0])">
         </div>
+        <button class="btn sm b2" onclick="clearImage()" style="margin-top:4px;">清除图片，用默认流场</button>
+    </div>
 
-        <div class="canvas-area">
-            <div id="canvas-container">
-                <div class="loading">生成曼荼罗中...</div>
-            </div>
+    <!-- 种子 -->
+    <div class="ctrl">
+        <h3>种子</h3>
+        <div class="seed-row">
+            <input type="number" id="seedIn" value="12345" onchange="updateSeed()">
+        </div>
+        <div class="btn-row" style="margin-top:6px;">
+            <button class="btn sm b2" onclick="prevSeed()">← 上一个</button>
+            <button class="btn sm b2" onclick="nextSeed()">下一个 →</button>
+            <button class="btn sm b3" onclick="randSeed()">↻ 随机</button>
         </div>
     </div>
 
-    <script>
-        // ══════════════════════════════════════════════════════════════════
-        // 参数
-        // ══════════════════════════════════════════════════════════════════
-        let params = {
-            seed: 12345,
-            symmetry: 8,
-            particleCount: 3500,
-            noiseMagnitude: 5.0,
-            noiseScale: 0.003,
-            flowSpeed: 1.2,
-            trailOpacity: 10,
-            bgColor: '#06060d',
-            colorScheme: 'fire',
-        };
+    <!-- 参数 -->
+    <div class="ctrl">
+        <h3>参数</h3>
 
-        let defaultParams = JSON.parse(JSON.stringify(params));
+        <div class="row" style="margin-bottom:10px;">
+            <label>对称</label>
+            <input type="range" id="sym" min="1" max="16" step="1" value="1" oninput="up('sym',this.value)">
+            <span class="val" id="sym-v">1</span>
+        </div>
+        <div class="row" style="margin-bottom:10px;">
+            <label>粒子密度</label>
+            <input type="range" id="density" min="2" max="16" step="1" value="5" oninput="up('density',this.value)">
+            <span class="val" id="density-v">5</span>
+        </div>
+        <div class="row" style="margin-bottom:10px;">
+            <label>粒子大小</label>
+            <input type="range" id="pSize" min="1" max="8" step="0.5" value="2.5" oninput="up('pSize',this.value)">
+            <span class="val" id="pSize-v">2.5</span>
+        </div>
+        <div class="row" style="margin-bottom:10px;">
+            <label>流动</label>
+            <input type="range" id="drift" min="0" max="5" step="0.5" value="1.5" oninput="up('drift',this.value)">
+            <span class="val" id="drift-v">1.5</span>
+        </div>
+        <div class="row" style="margin-bottom:10px;">
+            <label>亮度阈值</label>
+            <input type="range" id="thresh" min="10" max="200" step="5" value="50" oninput="up('thresh',this.value)">
+            <span class="val" id="thresh-v">50</span>
+        </div>
+    </div>
 
-        // ══════════════════════════════════════════════════════════════════
-        // 系统状态
-        // ══════════════════════════════════════════════════════════════════
-        let particles = [];
-        let flowField = [];
-        let cols, rows;
-        const RES = 5;
-        let symmetryAngles = [];
-        let frame = 0;
-        const MAX_FRAMES = 280;
-        let cx, cy; // 画布中心
-        let animationDone = false;
+    <!-- 操作 -->
+    <div class="ctrl">
+        <h3>操作</h3>
+        <div class="btn-row">
+            <button class="btn" onclick="regen()">↻ 重播</button>
+            <button class="btn b2" onclick="reset()">重置</button>
+        </div>
+        <button class="btn b3" onclick="saveCanvas('particle-art-'+params.seed,'png')" style="margin-top:6px;">⬇ 下载 PNG</button>
+    </div>
+</div>
 
-        // 配色方案
-        const colorSchemes = {
-            rainbow: { hues: [0, 60, 120, 180, 240, 300], sat: 85, bri: 95 },
-            ocean:   { hues: [180, 200, 220, 240, 260, 280], sat: 75, bri: 90 },
-            fire:    { hues: [0, 15, 30, 45, 350, 340], sat: 95, bri: 98 },
-            aurora:  { hues: [140, 160, 260, 280, 320, 200], sat: 70, bri: 95 },
-            neon:    { hues: [280, 300, 320, 50, 180, 200], sat: 90, bri: 100 },
-        };
+<div class="canvas-area">
+    <div id="cv"><div class="loading">请上传一张图片，或等待默认流场生成...</div></div>
+</div>
+</div>
 
-        // ══════════════════════════════════════════════════════════════════
-        // p5.js 初始化
-        // ══════════════════════════════════════════════════════════════════
-        function setup() {
-            let canvas = createCanvas(1200, 1200);
-            canvas.parent('canvas-container');
-            colorMode(HSB, 360, 100, 100, 100);
-            noiseDetail(4, 0.55);
-            cx = width / 2;
-            cy = height / 2;
-            initializeSystem();
-            document.querySelector('.loading').style.display = 'none';
+<script>
+// ══════════════════════════════════════════════════════════════════
+let params = { seed:12345, sym:1, density:5, pSize:2.5, drift:1.5, thresh:50 };
+const defs = JSON.parse(JSON.stringify(params));
+let uploadedImg = null;
+let particles = [], symAngles = [];
+let frame = 0;
+const MAX_FR = 300;
+let done = false;
+let cx, cy;
+
+// ══════════════════════════════════════════════════════════════════
+function setup() {
+    let c = createCanvas(1200, 1200);
+    c.parent('cv');
+    colorMode(RGB, 255);
+    noiseDetail(4, 0.55);
+    cx = width/2; cy = height/2;
+    document.querySelector('.loading').style.display = 'none';
+    initFlowField(); // 默认流场
+}
+
+// ── 默认流场（无图片时） ──
+let flowField = [], cols, rows;
+const RES = 5;
+
+function initFlowField() {
+    randomSeed(params.seed); noiseSeed(params.seed);
+    cols = floor(width/RES); rows = floor(height/RES);
+    flowField = new Array(rows);
+    for (let y=0; y<rows; y++) {
+        flowField[y] = new Array(cols);
+        for (let x=0; x<cols; x++) {
+            let a = noise(x*RES*0.003, y*RES*0.003)*TWO_PI*3 + noise(x*RES*0.003+100, y*RES*0.003+100)*0.8;
+            flowField[y][x] = p5.Vector.fromAngle(a);
         }
+    }
+    symAngles = [];
+    for (let i=0; i<params.sym; i++) symAngles.push(TWO_PI/params.sym*i);
+    particles = [];
+    for (let i=0; i<3500; i++) {
+        let a = random(TWO_PI), r = random(0,60);
+        particles.push({ x:cx+cos(a)*r, y:cy+sin(a)*r, px:cx+cos(a)*r, py:cy+sin(a)*r, md:random(200,540), sp:random(0.4,2.2), alive:true, src:'flow' });
+    }
+    background(6,6,13); frame=0; done=false; loop();
+}
 
-        function updateSymmetryAngles() {
-            symmetryAngles = [];
-            for (let i = 0; i < params.symmetry; i++) {
-                symmetryAngles.push((TWO_PI / params.symmetry) * i);
-            }
-        }
+// ── 图片粒子 ──
+function processImage(img) {
+    randomSeed(params.seed); noiseSeed(params.seed);
+    symAngles = [];
+    for (let i=0; i<params.sym; i++) symAngles.push(TWO_PI/params.sym*i);
 
-        function buildFlowField() {
-            cols = floor(width / RES);
-            rows = floor(height / RES);
-            flowField = new Array(rows);
-            for (let y = 0; y < rows; y++) {
-                flowField[y] = new Array(cols);
-                for (let x = 0; x < cols; x++) {
-                    let nx = x * RES * params.noiseScale;
-                    let ny = y * RES * params.noiseScale;
-                    // 多层噪声叠加，产生更丰富的流动
-                    let a = noise(nx, ny) * TWO_PI * 3;
-                    let b = noise(nx + 100, ny + 100) * 0.8;
-                    let angle = a + b;
-                    flowField[y][x] = p5.Vector.fromAngle(angle);
+    // 缩放适配画布
+    let scale = min(width/img.width, height/img.height);
+    let iw = floor(img.width*scale), ih = floor(img.height*scale);
+    let ox = (width-iw)/2, oy = (height-ih)/2;
+    let pg = createGraphics(iw, ih);
+    pg.image(img, 0, 0, iw, ih);
+    pg.loadPixels();
+
+    let step = max(2, floor(params.density));
+    particles = [];
+
+    for (let y=0; y<ih; y+=step) {
+        for (let x=0; x<iw; x+=step) {
+            let idx = (y*iw + x)*4;
+            let r = pg.pixels[idx], g = pg.pixels[idx+1], b = pg.pixels[idx+2], a = pg.pixels[idx+3];
+            let bright = (r+g+b)/3;
+            if (bright >= params.thresh && a > 20) {
+                let px = ox + x;
+                let py = oy + y;
+                // 多个粒子叠加在亮点
+                let count = bright > 200 ? 3 : bright > 140 ? 2 : 1;
+                for (let c=0; c<count; c++) {
+                    particles.push({
+                        x: px + random(-step/2, step/2),
+                        y: py + random(-step/2, step/2),
+                        ox: px, oy: py,
+                        r: r, g: g, b: b,
+                        bright: bright,
+                        alive: true,
+                        src: 'img',
+                        angle: random(TWO_PI),
+                        phase: random(TWO_PI),
+                    });
                 }
             }
         }
+    }
+    pg.remove();
+    background(6,6,13);
+    frame=0; done=false;
+    loop();
+}
 
-        function initializeSystem() {
-            randomSeed(params.seed);
-            noiseSeed(params.seed);
+// ══════════════════════════════════════════════════════════════════
+function draw() {
+    // 淡出拖尾
+    noStroke(); fill(6,6,13, params.drift>0?7:255); rect(0,0,width,height);
 
-            updateSymmetryAngles();
-            buildFlowField();
+    let alive = 0;
+    for (let p of particles) {
+        if (!p.alive) continue;
+        alive++;
 
-            particles = [];
-            frame = 0;
-            animationDone = false;
-
-            for (let i = 0; i < params.particleCount; i++) {
-                // 粒子从中心附近随机位置出发
-                let spawnAngle = random(TWO_PI);
-                let spawnRadius = random(0, 60);
-                let sx = cx + cos(spawnAngle) * spawnRadius;
-                let sy = cy + sin(spawnAngle) * spawnRadius;
-
-                particles.push({
-                    x: sx,
-                    y: sy,
-                    prevX: sx,
-                    prevY: sy,
-                    startAngle: spawnAngle,
-                    curDist: spawnRadius,
-                    maxDist: random(200, 540),
-                    speed: random(0.4, 2.2),
-                    alive: true,
-                });
+        if (p.src==='flow') {
+            // ── 默认流场模式 ──
+            let col = constrain(floor(p.x/RES),0,cols-1);
+            let row = constrain(floor(p.y/RES),0,rows-1);
+            let fl = flowField[row][col];
+            p.px=p.x; p.py=p.y;
+            p.x+=fl.x*1.2; p.y+=fl.y*1.2;
+            let d = dist(cx,cy,p.x,p.y);
+            if (d>p.md||p.x<-20||p.x>width+20||p.y<-20||p.y>height+20) { p.alive=false; continue; }
+            let dr = constrain(d/p.md,0,1);
+            for (let sa of symAngles) {
+                let c=cos(sa),s=sin(sa);
+                let rx0=(p.px-cx)*c-(p.py-cy)*s+cx, ry0=(p.px-cx)*s+(p.py-cy)*c+cy;
+                let rx1=(p.x-cx)*c-(p.y-cy)*s+cx, ry1=(p.x-cx)*s+(p.y-cy)*c+cy;
+                let ang = atan2(ry1-cy,rx1-cx);
+                let h = map(ang,-PI,PI,0,360);
+                let alpha = 10*(1-dr*0.6);
+                stroke(h,85,95, alpha); strokeWeight(map(dr,0,1,1.5,0.6));
+                line(rx0,ry0,rx1,ry1);
             }
-
-            // 解析背景色
-            let bgHex = params.bgColor.replace('#', '');
-            let br = parseInt(bgHex.substring(0, 2), 16);
-            let bg = parseInt(bgHex.substring(2, 4), 16);
-            let bb = parseInt(bgHex.substring(4, 6), 16);
-            // 转 HSB 近似
-            let bmax = max(br, bg, bb) / 255;
-            let bmin = min(br, bg, bb) / 255;
-            let bh = 0;
-            if (bmax !== bmin) {
-                let d = bmax - bmin;
-                if (bmax === br / 255) bh = ((bg - bb) / 255 / d + (bg < bb ? 6 : 0)) * 60;
-                else if (bmax === bg / 255) bh = ((bb - br) / 255 / d + 2) * 60;
-                else bh = ((br - bg) / 255 / d + 4) * 60;
+        } else {
+            // ── 图片粒子模式 ──
+            p.px = p.x; p.py = p.y;
+            if (params.drift > 0) {
+                // Perlin 噪声漂移
+                let nx = noise(p.ox*0.005+frame*0.003, p.oy*0.005)*params.drift*2 - params.drift;
+                let ny = noise(p.ox*0.005+200, p.oy*0.005+frame*0.003)*params.drift*2 - params.drift;
+                p.x += nx;
+                p.y += ny;
             }
-            background(bh, bmax < 0.1 ? 10 : 30, bmax * 100 < 15 ? 8 : 15);
-
-            loop();
+            // 绘制（含对称）
+            let alpha = map(p.bright, params.thresh, 255, 40, 220);
+            for (let sa of symAngles) {
+                let c=cos(sa), s=sin(sa);
+                let rx = (p.x-cx)*c - (p.y-cy)*s + cx;
+                let ry = (p.x-cx)*s + (p.y-cy)*c + cy;
+                strokeWeight(params.pSize);
+                stroke(p.r, p.g, p.b, alpha);
+                point(rx, ry);
+            }
         }
+    }
 
-        function getParticleColor(px, py, distRatio, frame) {
-            let scheme = colorSchemes[params.colorScheme];
-            let hues = scheme.hues;
-            let angle = atan2(py - cy, px - cx);
-
-            // 在配色方案的色相之间插值
-            let seg = map(angle, -PI, PI, 0, hues.length);
-            let i0 = floor(seg) % hues.length;
-            let i1 = (i0 + 1) % hues.length;
-            let t = seg - floor(seg);
-            // 处理色相环绕
-            let h0 = hues[i0], h1 = hues[i1];
-            if (abs(h1 - h0) > 180) {
-                if (h0 < h1) h0 += 360; else h1 += 360;
-            }
-            let h = (lerp(h0, h1, t) + 360) % 360;
-
-            // 饱和度随半径变化
-            let sat = lerp(scheme.sat, scheme.sat * 0.6, distRatio);
-            let bri = lerp(scheme.bri, scheme.bri * 0.5, distRatio);
-
-            return { h, sat, bri };
-        }
-
-        // ══════════════════════════════════════════════════════════════════
-        // 绘制循环
-        // ══════════════════════════════════════════════════════════════════
-        function draw() {
-            // 细微背景淡出，产生拖尾
-            noStroke();
-            fill(0, 0, 6, 2.2);
-            rect(0, 0, width, height);
-
-            let aliveCount = 0;
-
+    frame++;
+    if (frame>=MAX_FR || (alive===0 && frame>10)) {
+        if (!done && uploadedImg) {
+            // 最后补一层高亮点
             for (let p of particles) {
-                if (!p.alive) continue;
-
-                // 取流场方向
-                let col = constrain(floor(p.x / RES), 0, cols - 1);
-                let row = constrain(floor(p.y / RES), 0, rows - 1);
-                let flow = flowField[row][col];
-
-                // 前进
-                p.prevX = p.x;
-                p.prevY = p.y;
-                p.x += flow.x * params.flowSpeed;
-                p.y += flow.y * params.flowSpeed;
-
-                p.curDist = dist(cx, cy, p.x, p.y);
-                if (p.curDist > p.maxDist || p.x < -20 || p.x > width + 20 || p.y < -20 || p.y > height + 20) {
-                    p.alive = false;
-                    continue;
-                }
-                aliveCount++;
-
-                let distRatio = constrain(p.curDist / p.maxDist, 0, 1);
-
-                // 在每一个对称折叠中绘制
-                for (let symAngle of symmetryAngles) {
-                    let c = cos(symAngle), s = sin(symAngle);
-
-                    // 旋转当前位置
-                    let dx0 = p.prevX - cx, dy0 = p.prevY - cy;
-                    let rx0 = dx0 * c - dy0 * s + cx;
-                    let ry0 = dx0 * s + dy0 * c + cy;
-
-                    let dx1 = p.x - cx, dy1 = p.y - cy;
-                    let rx1 = dx1 * c - dy1 * s + cx;
-                    let ry1 = dx1 * s + dy1 * c + cy;
-
-                    let colInfo = getParticleColor(rx1, ry1, distRatio, frame);
-
-                    // 透明度随距离衰减
-                    let alpha = params.trailOpacity * (1 - distRatio * 0.6);
-                    alpha = constrain(alpha, 1, 100);
-
-                    strokeWeight(map(distRatio, 0, 1, 1.5, 0.6));
-                    stroke(colInfo.h, colInfo.sat, colInfo.bri, alpha);
-                    line(rx0, ry0, rx1, ry1);
+                if (!p.alive || p.src!=='img' || p.bright<180) continue;
+                for (let sa of symAngles) {
+                    let c=cos(sa),s=sin(sa);
+                    let rx=(p.x-cx)*c-(p.y-cy)*s+cx, ry=(p.x-cx)*s+(p.y-cy)*c+cy;
+                    strokeWeight(params.pSize*0.6);
+                    stroke(p.r,p.g,p.b, 120);
+                    point(rx,ry);
                 }
             }
-
-            frame++;
-
-            if (frame >= MAX_FRAMES || (aliveCount === 0 && frame > 10)) {
-                if (!animationDone) {
-                    animationDone = true;
-                    drawCoreBurst();
-                }
-                noLoop();
-            }
         }
+        done=true; noLoop();
+    }
+}
 
-        // 中心爆发光点
-        function drawCoreBurst() {
-            for (let i = 0; i < 120; i++) {
-                let angle = random(TWO_PI);
-                let d = pow(random(1), 2) * 80;
-                let x = cx + cos(angle) * d;
-                let y = cy + sin(angle) * d;
-                let scheme = colorSchemes[params.colorScheme];
-                let h = scheme.hues[floor(random(scheme.hues.length))];
-                let alpha = map(d, 0, 80, 85, 5);
-                stroke(h, 20, 100, alpha);
-                strokeWeight(random(1.5, 4));
-                point(x, y);
-            }
-        }
+// ══════════════════════════════════════════════════════════════════
+// UI
+function up(k,v) {
+    params[k] = (k==='density'||k==='sym') ? parseInt(v) : parseFloat(v);
+    document.getElementById(k+'-v').textContent = v;
+    if (k==='sym' && !uploadedImg) initFlowField();
+    else if (uploadedImg) processImage(uploadedImg);
+    else initFlowField();
+}
+function handleFile(file) {
+    if (!file) return;
+    let reader = new FileReader();
+    reader.onload = function(e) {
+        loadImage(e.target.result, function(img) {
+            uploadedImg = img;
+            document.getElementById('preview').src = e.target.result;
+            document.getElementById('preview').style.display = 'block';
+            document.getElementById('hint').style.display = 'none';
+            document.getElementById('dropZone').classList.add('has-img');
+            processImage(img);
+        });
+    };
+    reader.readAsDataURL(file);
+}
+function clearImage() {
+    uploadedImg = null;
+    document.getElementById('preview').style.display = 'none';
+    document.getElementById('hint').style.display = '';
+    document.getElementById('dropZone').classList.remove('has-img');
+    document.getElementById('fileIn').value = '';
+    initFlowField();
+}
+function regen() {
+    if (uploadedImg) processImage(uploadedImg);
+    else initFlowField();
+}
+function reset() {
+    params = JSON.parse(JSON.stringify(defs));
+    ['sym','density','pSize','drift','thresh'].forEach(k=>{
+        document.getElementById(k).value=params[k];
+        document.getElementById(k+'-v').textContent=params[k];
+    });
+    updateSeedDisp();
+    if (uploadedImg) processImage(uploadedImg); else initFlowField();
+}
+function updateSeedDisp() { document.getElementById('seedIn').value = params.seed; }
+function updateSeed() { let v=parseInt(document.getElementById('seedIn').value); if(v&&v>0){params.seed=v;regen();}else updateSeedDisp(); }
+function prevSeed() { params.seed=Math.max(1,params.seed-1); updateSeedDisp(); regen(); }
+function nextSeed() { params.seed++; updateSeedDisp(); regen(); }
+function randSeed() { params.seed=floor(Math.random()*999999)+1; updateSeedDisp(); regen(); }
+window.addEventListener('load',()=>updateSeedDisp());
 
-        // ══════════════════════════════════════════════════════════════════
-        // UI 处理
-        // ══════════════════════════════════════════════════════════════════
-        function updateParam(name, value) {
-            params[name] = value;
-            let el = document.getElementById(name + '-value');
-            if (el) el.textContent = value;
-            initializeSystem();
-        }
-
-        function updateBgColor(hex) {
-            params.bgColor = hex;
-            initializeSystem();
-        }
-
-        function updateColorScheme(scheme) {
-            params.colorScheme = scheme;
-            initializeSystem();
-        }
-
-        function regenerate() {
-            initializeSystem();
-        }
-
-        function downloadPNG() {
-            saveCanvas('kaleidoscope-' + params.seed, 'png');
-        }
-
-        // ══════════════════════════════════════════════════════════════════
-        // 种子控制
-        // ══════════════════════════════════════════════════════════════════
-        function updateSeedDisplay() {
-            document.getElementById('seed-input').value = params.seed;
-        }
-
-        function updateSeed() {
-            let v = parseInt(document.getElementById('seed-input').value);
-            if (v && v > 0) { params.seed = v; initializeSystem(); }
-            else updateSeedDisplay();
-        }
-
-        function previousSeed() {
-            params.seed = Math.max(1, params.seed - 1);
-            updateSeedDisplay(); initializeSystem();
-        }
-
-        function nextSeed() {
-            params.seed++;
-            updateSeedDisplay(); initializeSystem();
-        }
-
-        function randomSeedAndUpdate() {
-            params.seed = Math.floor(Math.random() * 999999) + 1;
-            updateSeedDisplay(); initializeSystem();
-        }
-
-        function resetParameters() {
-            params = JSON.parse(JSON.stringify(defaultParams));
-            document.getElementById('symmetry').value = params.symmetry;
-            document.getElementById('symmetry-value').textContent = params.symmetry;
-            document.getElementById('particleCount').value = params.particleCount;
-            document.getElementById('particleCount-value').textContent = params.particleCount;
-            document.getElementById('noiseMagnitude').value = params.noiseMagnitude;
-            document.getElementById('noiseMagnitude-value').textContent = params.noiseMagnitude;
-            document.getElementById('noiseScale').value = params.noiseScale;
-            document.getElementById('noiseScale-value').textContent = params.noiseScale;
-            document.getElementById('flowSpeed').value = params.flowSpeed;
-            document.getElementById('flowSpeed-value').textContent = params.flowSpeed;
-            document.getElementById('trailOpacity').value = params.trailOpacity;
-            document.getElementById('trailOpacity-value').textContent = params.trailOpacity;
-            document.getElementById('bgColor').value = params.bgColor;
-            document.getElementById('colorScheme').value = params.colorScheme;
-            updateSeedDisplay();
-            initializeSystem();
-        }
-
-        window.addEventListener('load', () => updateSeedDisplay());
-    </script>
+// 拖拽上传
+document.addEventListener('DOMContentLoaded',()=>{
+    let dz = document.getElementById('dropZone');
+    dz.addEventListener('dragover',e=>{e.preventDefault();dz.style.borderColor='var(--orange)';});
+    dz.addEventListener('dragleave',()=>dz.style.borderColor='');
+    dz.addEventListener('drop',e=>{
+        e.preventDefault(); dz.style.borderColor='';
+        if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+    });
+});
+</script>
 </body>
 </html>
