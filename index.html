@@ -275,29 +275,13 @@ function glRenderLoop() {
     if (!hasImage || glCount===0) { glRAF = requestAnimationFrame(glRenderLoop); return; }
     if (params.drift > 0) glTime += 0.04;
 
-    gl.disable(gl.DEPTH_TEST);
-    gl.enable(gl.BLEND);
-
-    if (frame === 0) {
-        // 首帧：不透明暗色清除
-        gl.clearColor(0.12, 0.12, 0.15, 1.0);
-        gl.clear(gl.COLOR_BUFFER_BIT);
-    } else if (params.drift > 0) {
-        // 后续帧：半透明黑块叠加 → 拖尾效果
-        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-        gl.useProgram(glBgShader);
-        gl.uniform4f(gl.getUniformLocation(glBgShader,'u_color'), 0.12,0.12,0.15,0.05);
-        gl.bindBuffer(gl.ARRAY_BUFFER, glBgVBO);
-        let loc = gl.getAttribLocation(glBgShader, 'a_pos');
-        gl.enableVertexAttribArray(loc);
-        gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
-        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-    }
+    gl.clearColor(0.12, 0.12, 0.15, 1.0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
 
     drawGL(glTime);
     frame++;
-    if (params.drift === 0 && frame > 1) { glRAF = null; return; } // 静态一帧即停
-    glRAF = requestAnimationFrame(glRenderLoop); // 晃动模式一直跑
+    if (params.drift === 0 && frame > 1) { glRAF = null; return; }
+    glRAF = requestAnimationFrame(glRenderLoop);
 }
 
 function startGLoop() {
