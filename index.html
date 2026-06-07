@@ -105,6 +105,7 @@
     <div class="ctrl">
         <h3>操作</h3>
         <div class="btn-row"><button class="btn" onclick="regen()">↻ 重播</button><button class="btn b2" onclick="resetAll()">重置</button></div>
+        <button class="btn b3" onclick="explode()" style="margin-top:6px;">💥 炸开聚合</button>
         <button class="btn b3" onclick="downloadPNG()" style="margin-top:6px;">⬇ 下载 PNG</button>
     </div>
 </div>
@@ -195,13 +196,15 @@ let glBgShader = null, glBgVBO = null, glNoiseTex = null;
 let glRAF = null, glTime = 0;
 let cursorX = -999, cursorY = -999, cursorActive = 0;
 let colorMode = 0, bgColor = [0.12,0.12,0.15], cursorForce = 1;
+let explodeVal = 0, explodeRAF = null; // 炸开动画
 
 const VS = `#version 100
 attribute vec2 a_pos; attribute vec3 a_col; attribute float a_phase; attribute float a_bright;
 uniform float u_time, u_drift, u_ps, u_w, u_h;
 uniform sampler2D u_noise;
-uniform vec3 u_cursor; // x,y, active(0/1)
+uniform vec3 u_cursor;
 uniform float u_cursorForce;
+uniform float u_explode; // 0=正常 0.5=完全炸开 1=聚合
 varying vec3 v_col; varying float v_alpha;
 void main(){
     float x=a_pos.x,y=a_pos.y;
@@ -211,6 +214,15 @@ void main(){
         float ny=texture2D(u_noise, uv+vec2(0.43,0.27)).g*2.0-1.0;
         x+=nx*u_drift*3.5;
         y+=ny*u_drift*3.5;
+    }
+    // 炸开聚合
+    if(u_explode>0.0){
+        vec2 dir=a_pos-vec2(u_w*0.5,u_h*0.5);
+        float len=length(dir);
+        if(len>0.0) dir=dir/len;
+        float strength=sin(u_explode*3.14159)*350.0;
+        x+=dir.x*strength;
+        y+=dir.y*strength;
     }
     // 鼠标推开粒子
     if(u_cursor.z>0.0){
@@ -336,6 +348,7 @@ function drawGL(time, driftOverride) {
     gl.uniform3f(gl.getUniformLocation(glProgram,'u_cursor'), cursorX, cursorY, cursorActive);
     gl.uniform1f(gl.getUniformLocation(glProgram,'u_cursorForce'), cursorForce);
     gl.uniform1i(gl.getUniformLocation(glProgram,'u_colorMode'), colorMode);
+    gl.uniform1f(gl.getUniformLocation(glProgram,'u_explode'), explodeVal);
 
     let stride = 7*4;
     let bind = function(name, size, off) {
@@ -442,6 +455,18 @@ function clearImage() {
     document.getElementById('dropZone').classList.remove('has-img');
     document.getElementById('fileIn').value = '';
     initFlowField();
+}
+function explode() {
+    if (!hasImage) return;
+    if (explodeRAF) cancelAnimationFrame(explodeRAF);
+    let start = performance.now();
+    function anim(now) {
+        let t = (now - start) / 2000; // 2 秒完成
+        if (t >= 1) { explodeVal = 0; explodeRAF = null; return; }
+        explodeVal = t;
+        explodeRAF = requestAnimationFrame(anim);
+    }
+    explodeRAF = requestAnimationFrame(anim);
 }
 function regen() { if (uploadedImg) processImage(); else initFlowField(); }
 function resetAll() {
