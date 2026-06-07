@@ -306,17 +306,7 @@ function processImageCore(imgEl) {
     frame=0; done=false;
 
     if (params.drift === 0) {
-        _renderer.push();
-        let gl = _gl;
-        gl.useProgram(_shader);
-        gl.uniform1f(gl.getUniformLocation(_shader,'u_time'), 0);
-        gl.uniform1f(gl.getUniformLocation(_shader,'u_drift'), 0);
-        gl.uniform1f(gl.getUniformLocation(_shader,'u_ps'), params.pSize);
-        gl.uniform1f(gl.getUniformLocation(_shader,'u_thresh'), params.thresh/255);
-        gl.uniform2f(gl.getUniformLocation(_shader,'u_res'), width, height);
-        bindAttribs();
-        gl.drawArrays(gl.POINTS, 0, _gpuCount);
-        _renderer.pop();
+        drawParticlesRaw(0); // 静态：u_time=0，u_drift=0
         noLoop(); done = true;
     } else {
         loop();
@@ -333,28 +323,34 @@ function draw() {
     }
 }
 
-// ── GPU 粒子渲染（晃动模式） ──
-function drawImageParticlesGPU() {
-    if (_gpuCount === 0) return;
-
-    _renderer.push();
+// ── 纯 WebGL 粒子渲染 ──
+function drawParticlesRaw(time, driftOverride) {
     let gl = _gl;
+    gl.disable(gl.DEPTH_TEST);
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
     gl.useProgram(_shader);
-
-    // 背景淡出用 p5 rect（仍然在 GPU 上）
-    resetMatrix(); ortho(); translate(-width/2, -height/2);
-    colorMode(RGB, 255); noStroke(); fill(6,6,13,12); rect(0,0,width,height);
-
-    // 自定义着色器渲染粒子
-    gl.useProgram(_shader);
-    gl.uniform1f(gl.getUniformLocation(_shader,'u_time'), frame * 0.04);
-    gl.uniform1f(gl.getUniformLocation(_shader,'u_drift'), params.drift);
+    let d = driftOverride !== undefined ? driftOverride : params.drift;
+    gl.uniform1f(gl.getUniformLocation(_shader,'u_time'), time);
+    gl.uniform1f(gl.getUniformLocation(_shader,'u_drift'), d);
     gl.uniform1f(gl.getUniformLocation(_shader,'u_ps'), params.pSize);
     gl.uniform1f(gl.getUniformLocation(_shader,'u_thresh'), params.thresh/255);
     gl.uniform2f(gl.getUniformLocation(_shader,'u_res'), width, height);
     bindAttribs();
     gl.drawArrays(gl.POINTS, 0, _gpuCount);
-    _renderer.pop();
+}
+
+function drawImageParticlesGPU() {
+    if (_gpuCount === 0) return;
+
+    // 1. 背景淡出（用 p5.js）
+    push();
+    resetMatrix(); ortho(); translate(-width/2, -height/2);
+    colorMode(RGB, 255); noStroke(); fill(6,6,13, 18); rect(0,0,width,height);
+    pop();
+
+    // 2. 纯 GPU 画粒子
+    drawParticlesRaw(frame * 0.04);
 
     frame++;
     if (frame >= MAX_FR) { done = true; noLoop(); }
