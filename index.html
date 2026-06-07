@@ -196,7 +196,8 @@ let glBgShader = null, glBgVBO = null, glNoiseTex = null;
 let glRAF = null, glTime = 0;
 let cursorX = -999, cursorY = -999, cursorActive = 0;
 let colorMode = 0, bgColor = [0.12,0.12,0.15], cursorForce = 1;
-let explodeVal = 0, explodeRAF = null; // 炸开动画
+let explodeVal = 0, explodeRAF = null;
+let rippleX = 0, rippleY = 0, rippleR = 0, rippleRAF = null;
 
 const VS = `#version 100
 attribute vec2 a_pos; attribute vec3 a_col; attribute float a_phase; attribute float a_bright;
@@ -204,7 +205,8 @@ uniform float u_time, u_drift, u_ps, u_w, u_h;
 uniform sampler2D u_noise;
 uniform vec3 u_cursor;
 uniform float u_cursorForce;
-uniform float u_explode; // 0=正常 0.5=完全炸开 1=聚合
+uniform float u_explode;
+uniform vec3 u_ripple; // x,y=点击位置 z=当前半径(0=无波纹)
 varying vec3 v_col; varying float v_alpha;
 void main(){
     float x=a_pos.x,y=a_pos.y;
@@ -223,6 +225,13 @@ void main(){
         float strength=sin(u_explode*3.14159)*350.0;
         x+=dir.x*strength;
         y+=dir.y*strength;
+    }
+    // 点击波纹
+    if(u_ripple.z>0.0){
+        float dx=x-u_ripple.x,dy=y-u_ripple.y;
+        float dist=sqrt(dx*dx+dy*dy);
+        float ring=exp(-abs(dist-u_ripple.z)/50.0);
+        if(dist>0.0){x+=dx/dist*ring*35.0;y+=dy/dist*ring*35.0;}
     }
     // 鼠标推开粒子
     if(u_cursor.z>0.0){
@@ -349,6 +358,7 @@ function drawGL(time, driftOverride) {
     gl.uniform1f(gl.getUniformLocation(glProgram,'u_cursorForce'), cursorForce);
     gl.uniform1i(gl.getUniformLocation(glProgram,'u_colorMode'), colorMode);
     gl.uniform1f(gl.getUniformLocation(glProgram,'u_explode'), explodeVal);
+    gl.uniform3f(gl.getUniformLocation(glProgram,'u_ripple'), rippleX, rippleY, rippleR);
 
     let stride = 7*4;
     let bind = function(name, size, off) {
@@ -456,6 +466,20 @@ function clearImage() {
     document.getElementById('fileIn').value = '';
     initFlowField();
 }
+function triggerRipple(cx, cy) {
+    if (!hasImage) return;
+    if (rippleRAF) cancelAnimationFrame(rippleRAF);
+    rippleX = cx; rippleY = cy; rippleR = 0;
+    let start = performance.now();
+    function anim(now) {
+        let t = (now - start) / 1000; // 1 秒
+        if (t >= 1) { rippleR = 0; rippleRAF = null; return; }
+        rippleR = t * 400; // 半径从 0 扩展到 400px
+        rippleRAF = requestAnimationFrame(anim);
+    }
+    rippleRAF = requestAnimationFrame(anim);
+}
+
 function explode() {
     if (!hasImage) return;
     if (explodeRAF) cancelAnimationFrame(explodeRAF);
@@ -539,6 +563,12 @@ glCanvasEl.addEventListener('touchmove', function(e) {
     cursorActive = 1;
 }, {passive:false});
 glCanvasEl.addEventListener('touchend', function() { cursorActive = 0; });
+glCanvasEl.addEventListener('click', function(e) {
+    let rect = glCanvasEl.getBoundingClientRect();
+    let cx = (e.clientX - rect.left) * (1200/rect.width);
+    let cy = (e.clientY - rect.top) * (1200/rect.height);
+    triggerRipple(cx, cy);
+});
 
 function updateSeedDisp() { document.getElementById('seedIn').value = params.seed; }
 function updateSeed() { let v=parseInt(document.getElementById('seedIn').value); if(v&&v>0){params.seed=v;regen();}else updateSeedDisp(); }
