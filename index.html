@@ -89,7 +89,7 @@
         </div>
         <div class="row">
             <label>流动强度</label>
-            <input type="range" id="drift" min="0" max="5" step="0.5" value="1.5" oninput="up('drift',this.value)">
+            <input type="range" id="drift" min="0" max="5" step="0.5" value="1" oninput="up('drift',this.value)">
             <span class="val" id="drift-v">1.5</span>
         </div>
         <div class="row">
@@ -116,7 +116,7 @@
 
 <script>
 // ══════════════════════════════════════════════════════════════════
-let params = { seed:12345, density:6, pSize:2.5, drift:1.5, thresh:40 };
+let params = { seed:12345, density:6, pSize:2.5, drift:1, thresh:40 };
 const defs = JSON.parse(JSON.stringify(params));
 let uploadedImg = false;
 let storedDataUrl = null;
