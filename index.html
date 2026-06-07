@@ -191,7 +191,7 @@ precision mediump float;
 varying vec3 v_col; varying float v_alpha;
 void main(){
     float d=length(gl_PointCoord-vec2(0.5))*2.0;
-    float a=v_alpha*(1.0-smoothstep(0.6,1.0,d));
+    float a=v_alpha*step(d,0.95);
     gl_FragColor=vec4(v_col,a);
 }`;
 
@@ -307,7 +307,8 @@ function processImageCore(imgEl) {
             if (bright>=params.thresh && aa>20) {
                 let px=ox+x, py=oy+y;
                 if (px<0||px>=1200||py<0||py>=1200) continue;
-                for (let n=0; n<1; n++) {
+                let count=bright>200?3:bright>140?2:1;
+                for (let n=0; n<count; n++) {
                     particles.push({ox:px+(seededRand()-0.5)*step, oy:py+(seededRand()-0.5)*step, r:rr, g:gg, b:bb, bright:bright, ph:seededRand()*6.283});
                 }
             }
