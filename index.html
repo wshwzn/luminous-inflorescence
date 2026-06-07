@@ -107,7 +107,9 @@ let particles = []; let cx, cy;
 let flowField = [], cols, rows;
 const RES = 5;
 
+var _p5 = null;
 new p5(function(p) {
+    _p5 = p;
     p.setup = function() {
         let c = p.createCanvas(1200, 1200);
         c.parent('p5-mount');
@@ -146,21 +148,22 @@ function initFlowField() {
     hasImage = false;
     document.getElementById('gl-canvas').style.display = 'none';
     document.getElementById('p5-mount').style.display = 'block';
-    randomSeed(params.seed); noiseSeed(params.seed);
-    cols = floor(1200/RES); rows = floor(1200/RES);
+    if (!_p5) return;
+    _p5.randomSeed(params.seed); _p5.noiseSeed(params.seed);
+    cols = Math.floor(1200/RES); rows = Math.floor(1200/RES);
     flowField = Array(rows);
     for (let y=0; y<rows; y++) {
         flowField[y] = Array(cols);
         for (let x=0; x<cols; x++) {
-            flowField[y][x] = p5.Vector.fromAngle(noise(x*RES*0.003,y*RES*0.003)*TWO_PI*3+noise(x*RES*0.003+100,y*RES*0.003+100)*0.8);
+            flowField[y][x] = p5.Vector.fromAngle(_p5.noise(x*RES*0.003,y*RES*0.003)*_p5.TWO_PI*3+_p5.noise(x*RES*0.003+100,y*RES*0.003+100)*0.8);
         }
     }
     particles = [];
     for (let i=0; i<3500; i++) {
-        let a = random(TWO_PI), r = random(0,60);
-        particles.push({ x:cx+cos(a)*r, y:cy+sin(a)*r, px:cx+cos(a)*r, py:cy+sin(a)*r, md:random(200,540), sp:random(0.4,2.2), alive:true, src:'flow' });
+        let a = _p5.random(_p5.TWO_PI), r = _p5.random(0,60);
+        particles.push({ x:cx+Math.cos(a)*r, y:cy+Math.sin(a)*r, px:cx+Math.cos(a)*r, py:cy+Math.sin(a)*r, md:_p5.random(200,540), sp:_p5.random(0.4,2.2), alive:true, src:'flow' });
     }
-    frame=0; window.loop();
+    frame=0; _p5.loop();
 }
 
 // ═══════════════════════════════════ WebGL 粒子引擎 ═══════════════
@@ -278,7 +281,9 @@ function processImage() {
 }
 
 function processImageCore(imgEl) {
-    randomSeed(params.seed); noiseSeed(params.seed);
+    // 用确定性随机（基于种子）
+    let s = params.seed;
+    function seededRand() { s=(s*16807+0)%2147483647; return s/2147483647; }
     let iw=imgEl.naturalWidth||imgEl.width, ih=imgEl.naturalHeight||imgEl.height;
     let scale = Math.max(1200/iw, 1200/ih);
     let sw=Math.floor(iw*scale), sh=Math.floor(ih*scale);
@@ -303,7 +308,7 @@ function processImageCore(imgEl) {
                 let count=bright>200?3:bright>140?2:1;
                 for (let n=0; n<count; n++) {
                     if (particles.length>=MAX_P) break sample;
-                    particles.push({ox:px+random(-step/2,step/2), oy:py+random(-step/2,step/2), r:rr, g:gg, b:bb, ph:random(6.283)});
+                    particles.push({ox:px+(seededRand()-0.5)*step, oy:py+(seededRand()-0.5)*step, r:rr, g:gg, b:bb, ph:seededRand()*6.283});
                 }
             }
         }
@@ -363,7 +368,7 @@ function downloadPNG() {
         a.href = cv.toDataURL('image/png');
         a.click();
     } else {
-        saveCanvas('particle-art-'+params.seed, 'png');
+        if (_p5) _p5.saveCanvas('particle-art-'+params.seed, 'png');
     }
 }
 
