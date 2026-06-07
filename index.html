@@ -191,7 +191,7 @@ function processImageCore(imgEl) {
     let data = ctx.getImageData(0, 0, sw, sh).data;
 
     let step = max(2, floor(16 - params.density * 1.4)); // 密度越高 → 步长越小 → 粒子越多
-    const MAX_P = 15000; // 粒子硬上限，保证动画流畅
+    const MAX_P = 150000; // 粒子硬上限
     particles = [];
 
     sample: for (let y=0; y<sh; y+=step) {
