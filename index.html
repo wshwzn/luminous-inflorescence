@@ -237,14 +237,19 @@ function processImageCore(imgEl) {
 function renderImageParticlesStatic() {
     colorMode(RGB, 255, 255, 255, 255);
     noStroke();
-    let ps = params.pSize;
+    let ps = params.pSize, half = ps/2;
     let thresh = params.thresh;
+    beginShape(QUADS);
     for (let p of particles) {
         if (!p.alive) continue;
-        let a = map(p.bright, thresh, 255, 0.15, 0.85) * 255;
-        fill(p.r, p.g, p.b, a);
-        rect(p.x - ps/2, p.y - ps/2, ps, ps);
+        let a = map(p.bright, thresh, 255, 0.15, 0.85)*255;
+        fill(p.r&0xF0, p.g&0xF0, p.b&0xF0, Math.round(a/16)*16);
+        vertex(p.x-half, p.y-half);
+        vertex(p.x+half, p.y-half);
+        vertex(p.x+half, p.y+half);
+        vertex(p.x-half, p.y+half);
     }
+    endShape();
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -263,32 +268,38 @@ function draw() {
 function drawImageParticles() {
     colorMode(RGB, 255, 255, 255, 255);
     noStroke();
-    let ps = params.pSize;
-    let thresh = params.thresh;
-    let drift = params.drift;
+    let ps = params.pSize, half = ps/2;
+    let thresh = params.thresh, drift = params.drift;
 
     // 背景淡出
     fill(6, 6, 13, 18);
     rect(0, 0, width, height);
 
+    // 批处理：所有粒子打包成一个 beginShape(QUADS)，GPU 一次渲染
+    beginShape(QUADS);
     for (let p of particles) {
         if (!p.alive) continue;
 
         if (drift > 0) {
             let t = frame * 0.03;
-            let nx = noise(p.ox * 0.008, p.oy * 0.008, t) * 2 - 1;
-            let ny = noise(p.ox * 0.008, p.oy * 0.008 + 100, t) * 2 - 1;
-            p.x = p.ox + nx * drift * 3.5;
-            p.y = p.oy + ny * drift * 3.5;
+            let nx = noise(p.ox*0.008, p.oy*0.008, t)*2-1;
+            let ny = noise(p.ox*0.008, p.oy*0.008+100, t)*2-1;
+            p.x = p.ox + nx*drift*3.5;
+            p.y = p.oy + ny*drift*3.5;
         }
 
-        let a = map(p.bright, thresh, 255, 0.12, 0.75) * 255;
-        fill(p.r, p.g, p.b, a);
-        rect(p.x - ps/2, p.y - ps/2, ps, ps);
+        let a = map(p.bright, thresh, 255, 0.12, 0.75)*255;
+        // 颜色量化到近 16，合并相近粒子减少 GPU 调用
+        fill(p.r&0xF0, p.g&0xF0, p.b&0xF0, Math.round(a/16)*16);
+        vertex(p.x-half, p.y-half);
+        vertex(p.x+half, p.y-half);
+        vertex(p.x+half, p.y+half);
+        vertex(p.x-half, p.y+half);
     }
+    endShape();
 
     frame++;
-    if (frame >= MAX_FR) { done = true; noLoop(); }
+    if (frame>=MAX_FR) { done=true; noLoop(); }
 }
 
 // ── 默认流场 draw ──
