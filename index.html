@@ -79,8 +79,8 @@
         <h3>参数</h3>
         <div class="row">
             <label>粒子密度</label>
-            <input type="range" id="density" min="2" max="16" step="1" value="4" oninput="up('density',this.value)">
-            <span class="val" id="density-v">4</span>
+            <input type="range" id="density" min="1" max="10" step="1" value="6" oninput="up('density',this.value)">
+            <span class="val" id="density-v">6</span>
         </div>
         <div class="row">
             <label>粒子大小</label>
@@ -116,7 +116,7 @@
 
 <script>
 // ══════════════════════════════════════════════════════════════════
-let params = { seed:12345, density:4, pSize:2.5, drift:1.5, thresh:40 };
+let params = { seed:12345, density:6, pSize:2.5, drift:1.5, thresh:40 };
 const defs = JSON.parse(JSON.stringify(params));
 let uploadedImg = false;
 let storedDataUrl = null;
@@ -190,7 +190,7 @@ function processImageCore(imgEl) {
     ctx.drawImage(imgEl, 0, 0, sw, sh);
     let data = ctx.getImageData(0, 0, sw, sh).data;
 
-    let step = max(2, floor(params.density));
+    let step = max(2, 12 - params.density); // 密度越高 → 步长越小 → 粒子越多
     particles = [];
 
     for (let y=0; y<sh; y+=step) {
