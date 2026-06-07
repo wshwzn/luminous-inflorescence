@@ -293,10 +293,9 @@ function processImageCore(imgEl) {
     let data=ctx.getImageData(0,0,sw,sh).data;
 
     let step=Math.max(2, Math.floor(16-params.density*1.4));
-    const MAX_P=150000;
     particles=[];
 
-    sample: for (let y=0; y<sh; y+=step) {
+    for (let y=0; y<sh; y+=step) {
         for (let x=0; x<sw; x+=step) {
             let idx=(y*sw+x)*4;
             let rr=data[idx], gg=data[idx+1], bb=data[idx+2], aa=data[idx+3];
@@ -306,7 +305,6 @@ function processImageCore(imgEl) {
                 if (px<0||px>=1200||py<0||py>=1200) continue;
                 let count=bright>200?3:bright>140?2:1;
                 for (let n=0; n<count; n++) {
-                    if (particles.length>=MAX_P) break sample;
                     particles.push({ox:px+(seededRand()-0.5)*step, oy:py+(seededRand()-0.5)*step, r:rr, g:gg, b:bb, ph:seededRand()*6.283});
                 }
             }
