@@ -212,8 +212,8 @@ function processImageCore(imgEl) {
                         ox: px, oy: py,
                         r: rr, g: gg, b: bb,
                         bright: bright,
-                        alive: true,
-                        src: 'img',
+                        alive: true, src: 'img',
+                        ph: random(TWO_PI), fx: random(0.7,1.3), fy: random(0.7,1.3),
                     });
                 }
             }
@@ -281,11 +281,9 @@ function drawImageParticles() {
         if (!p.alive) continue;
 
         if (drift > 0) {
-            let t = frame * 0.03;
-            let nx = noise(p.ox*0.008, p.oy*0.008, t)*2-1;
-            let ny = noise(p.ox*0.008, p.oy*0.008+100, t)*2-1;
-            p.x = p.ox + nx*drift*3.5;
-            p.y = p.oy + ny*drift*3.5;
+            let t = frame * 0.04;
+            p.x = p.ox + sin(t * p.fx + p.ph) * drift * 3.5;
+            p.y = p.oy + cos(t * p.fy + p.ph) * drift * 3.5;
         }
 
         let a = map(p.bright, thresh, 255, 0.12, 0.75)*255;
