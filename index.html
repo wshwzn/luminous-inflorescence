@@ -256,8 +256,8 @@ void main(){
 function initGL() {
     let cv = document.getElementById('gl-canvas');
     cv.width = 1200; cv.height = 1200;
-    gl = cv.getContext('webgl', {alpha:true, premultipliedAlpha:false}) ||
-         cv.getContext('experimental-webgl', {alpha:true, premultipliedAlpha:false});
+    gl = cv.getContext('webgl', {alpha:true, premultipliedAlpha:false, preserveDrawingBuffer:true}) ||
+         cv.getContext('experimental-webgl', {alpha:true, premultipliedAlpha:false, preserveDrawingBuffer:true});
     if (!gl) { alert('浏览器不支持WebGL'); return; }
 
     function mkShader(type, src) {
