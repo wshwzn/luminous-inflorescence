@@ -38,9 +38,8 @@
         .seed-row input { flex: 1; background: rgba(255,255,255,0.06); padding: 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); text-align: center; color: var(--text); font-family: 'Courier New', monospace; font-size: 14px; }
         .seed-row input:focus { outline: none; border-color: var(--orange); }
         .canvas-area { flex: 1; display: flex; align-items: center; justify-content: center; min-width: 0; position: relative; }
-        #canvas-wrap { position: relative; width: 100%; max-width: 1000px; border-radius: 12px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.6); background: #06060d; }
-        #canvas-wrap canvas { display: block; width: 100% !important; height: auto !important; }
-        #gl-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+        #canvas-wrap { position: relative; width: 100%; max-width: 1000px; aspect-ratio: 1/1; border-radius: 12px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.6); background: #06060d; }
+        #canvas-wrap canvas { position: absolute; top: 0; left: 0; display: block; width: 100% !important; height: 100% !important; }
         .loading { display: flex; align-items: center; justify-content: center; height: 600px; font-size: 15px; color: var(--muted); font-family: 'Lora', serif; }
         @media (max-width: 600px) { .container { flex-direction: column; } .sidebar { width: 100%; } }
     </style>
@@ -255,13 +254,13 @@ function glRenderLoop() {
     if (!hasImage || glCount===0) { glRAF = requestAnimationFrame(glRenderLoop); return; }
     if (params.drift > 0) glTime += 0.04;
 
-    // 背景淡出
-    gl.clearColor(0.024, 0.024, 0.051, 0.07);
+    // 背景：首帧不透明，后续帧半透明淡出
+    let isFirst = (frame === 0);
+    gl.clearColor(0.024, 0.024, 0.051, isFirst ? 1.0 : 0.05);
     gl.clear(gl.COLOR_BUFFER_BIT);
 
     drawGL(glTime);
     frame++;
-    if (frame >= MAX_FR && params.drift===0) { /* static stays */ }
     glRAF = requestAnimationFrame(glRenderLoop);
 }
 
