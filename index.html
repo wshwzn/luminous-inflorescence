@@ -88,7 +88,7 @@
             <span class="val" id="pSize-v">2.5</span>
         </div>
         <div class="row">
-            <label>流动强度</label>
+            <label>晃动幅度</label>
             <input type="range" id="drift" min="0" max="5" step="0.5" value="1" oninput="up('drift',this.value)">
             <span class="val" id="drift-v">1.5</span>
         </div>
@@ -269,10 +269,12 @@ function drawImageParticles() {
         if (!p.alive) continue;
 
         if (drift > 0) {
-            let nx = noise(p.ox*0.005+frame*0.003, p.oy*0.005)*drift*2 - drift;
-            let ny = noise(p.ox*0.005+200, p.oy*0.005+frame*0.003)*drift*2 - drift;
-            p.x += nx;
-            p.y += ny;
+            // 绕原点晃动，不飘走
+            let t = frame * 0.03;
+            let nx = noise(p.ox * 0.008, p.oy * 0.008, t) * 2 - 1;
+            let ny = noise(p.ox * 0.008, p.oy * 0.008 + 100, t) * 2 - 1;
+            p.x = p.ox + nx * drift * 1.8;
+            p.y = p.oy + ny * drift * 1.8;
         }
 
         let a = map(p.bright, thresh, 255, 0.12, 0.75);
