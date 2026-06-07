@@ -177,8 +177,8 @@ function processImage(img) {
     symAngles = [];
     for (let i=0; i<params.sym; i++) symAngles.push(TWO_PI/params.sym*i);
 
-    // 缩放适配画布
-    let scale = min(width/img.width, height/img.height);
+    // 缩放铺满画布（cover 模式，裁掉超出部分）
+    let scale = max(width/img.width, height/img.height);
     let iw = floor(img.width*scale), ih = floor(img.height*scale);
     let ox = (width-iw)/2, oy = (height-ih)/2;
     let pg = createGraphics(iw, ih);
@@ -196,6 +196,8 @@ function processImage(img) {
             if (bright >= params.thresh && a > 20) {
                 let px = ox + x;
                 let py = oy + y;
+                // 只保留画布范围内的像素
+                if (px < 0 || px >= width || py < 0 || py >= height) continue;
                 let hsb = rgbToHsb(r,g,b);
                 let count = bright > 200 ? 3 : bright > 140 ? 2 : 1;
                 for (let c=0; c<count; c++) {
