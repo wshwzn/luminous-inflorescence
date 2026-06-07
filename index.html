@@ -105,6 +105,7 @@
     <div class="ctrl">
         <h3>操作</h3>
         <div class="btn-row"><button class="btn" onclick="regen()">↻ 重播</button><button class="btn b2" onclick="resetAll()">重置</button></div>
+        <button class="btn b3" id="vortexBtn" onclick="toggleVortex()" style="margin-top:6px;">🧲 磁吸模式：关</button>
         <button class="btn b3" onclick="settle()" style="margin-top:6px;">🌧️ 粒子沉降</button>
         <button class="btn b3" onclick="explode()" style="margin-top:6px;">💥 炸开聚合</button>
         <button class="btn b3" onclick="downloadPNG()" style="margin-top:6px;">⬇ 下载 PNG</button>
@@ -200,6 +201,7 @@ let colorMode = 0, bgColor = [0.12,0.12,0.15], cursorForce = 1;
 let explodeVal = 0, explodeRAF = null;
 let rippleX = 0, rippleY = 0, rippleR = 0, rippleRAF = null;
 let settleVal = 0, settleRAF = null;
+let vortexX = 0, vortexY = 0, vortexZ = 0, vortexHolding = false;
 
 const VS = `#version 100
 attribute vec2 a_pos; attribute vec3 a_col; attribute float a_phase; attribute float a_bright;
@@ -208,7 +210,8 @@ uniform sampler2D u_noise;
 uniform vec3 u_cursor;
 uniform float u_cursorForce;
 uniform float u_explode;
-uniform float u_settle; // 0→1: 粒子沉降再弹回
+uniform float u_settle;
+uniform vec3 u_vortex; // x,y=磁吸中心 z=力度
 uniform vec3 u_ripple;
 varying vec3 v_col; varying float v_alpha;
 void main(){
@@ -244,6 +247,17 @@ void main(){
         float ang=a_phase*6.283;
         x+=cos(ang)*s*70.0;
         y+=sin(ang)*s*70.0;
+    }
+    // 按住磁吸：粒子被吸向光标
+    if(u_vortex.z>0.0){
+        float dx=u_vortex.x-x,dy=u_vortex.y-y;
+        float dist=sqrt(dx*dx+dy*dy);
+        float r=200.0;
+        if(dist<r && dist>0.0){
+            float f=u_vortex.z*(1.0-dist/r);
+            x+=dx/dist*f*80.0;
+            y+=dy/dist*f*80.0;
+        }
     }
     // 鼠标推开粒子
     if(u_cursor.z>0.0){
@@ -371,6 +385,7 @@ function drawGL(time, driftOverride) {
     gl.uniform1i(gl.getUniformLocation(glProgram,'u_colorMode'), colorMode);
     gl.uniform1f(gl.getUniformLocation(glProgram,'u_explode'), explodeVal);
     gl.uniform1f(gl.getUniformLocation(glProgram,'u_settle'), settleVal);
+    gl.uniform3f(gl.getUniformLocation(glProgram,'u_vortex'), vortexX, vortexY, vortexZ);
     gl.uniform3f(gl.getUniformLocation(glProgram,'u_ripple'), rippleX, rippleY, rippleR);
 
     let stride = 7*4;
@@ -493,6 +508,12 @@ function triggerRipple(cx, cy) {
     rippleRAF = requestAnimationFrame(anim);
 }
 
+function toggleVortex() {
+    vortexHolding = !vortexHolding;
+    let btn = document.getElementById('vortexBtn');
+    btn.textContent = vortexHolding ? '🧲 磁吸模式：开' : '🧲 磁吸模式：关';
+    if (!vortexHolding) vortexZ = 0;
+}
 function settle() {
     if (!hasImage) return;
     if (settleRAF) cancelAnimationFrame(settleRAF);
@@ -589,6 +610,20 @@ glCanvasEl.addEventListener('touchmove', function(e) {
     cursorActive = 1;
 }, {passive:false});
 glCanvasEl.addEventListener('touchend', function() { cursorActive = 0; });
+glCanvasEl.addEventListener('mousedown', function(e) {
+    if (!vortexHolding) return;
+    let rect = glCanvasEl.getBoundingClientRect();
+    vortexX = (e.clientX - rect.left) * (1200/rect.width);
+    vortexY = (e.clientY - rect.top) * (1200/rect.height);
+    vortexZ = 1;
+});
+glCanvasEl.addEventListener('mouseup', function() { if (vortexHolding) vortexZ = 0; });
+glCanvasEl.addEventListener('mousemove', function(e) {
+    if (!vortexHolding || vortexZ === 0) return;
+    let rect = glCanvasEl.getBoundingClientRect();
+    vortexX = (e.clientX - rect.left) * (1200/rect.width);
+    vortexY = (e.clientY - rect.top) * (1200/rect.height);
+});
 glCanvasEl.addEventListener('click', function(e) {
     let rect = glCanvasEl.getBoundingClientRect();
     let cx = (e.clientX - rect.left) * (1200/rect.width);
