@@ -257,13 +257,14 @@ function glRenderLoop() {
     if (!hasImage || glCount===0) { glRAF = requestAnimationFrame(glRenderLoop); return; }
     if (params.drift > 0) glTime += 0.04;
 
-    // 背景：首帧不透明，后续帧半透明淡出
-    let isFirst = (frame === 0);
-    gl.clearColor(0.024, 0.024, 0.051, isFirst ? 1.0 : 0.05);
+    // 每帧不透明清除，粒子直接画在暗色背景上
+    gl.clearColor(0.024, 0.024, 0.051, 1.0);
     gl.clear(gl.COLOR_BUFFER_BIT);
 
     drawGL(glTime);
     frame++;
+    if (params.drift === 0 && frame > 1) { glRAF = null; return; } // 静态一帧即停
+    if (frame >= MAX_FR) { glRAF = null; return; }
     glRAF = requestAnimationFrame(glRenderLoop);
 }
 
